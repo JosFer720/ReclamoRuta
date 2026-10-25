@@ -1,0 +1,42 @@
+# Entornos, credenciales y archivos personales
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+kaggle.json
+*credentials*.json
+*.pem
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.idea/
+.vscode/
+Thumbs.db
+.DS_Store
+.worktrees/
+
+# Datos, pesos y resultados voluminosos: compartir fuera de Git
+data/raw/
+data/processed/
+data/cache/
+artifacts/
+checkpoints/
+runs/
+uploads/
+*.wav
+*.flac
+*.mp3
+*.pt
+*.pth
+*.safetensors
+*.onnx
+*.zip
+*.7z
+*.mp4
+
+# Se pueden versionar métricas pequeñas y manifiestos sin datos sensibles
