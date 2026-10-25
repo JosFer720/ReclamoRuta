@@ -1,0 +1,4 @@
+# equipo's modules use only Python's standard library at runtime.
+# Reproduces the test runner used during implementation; app/GPU dependencies
+# remain the responsibility of equipo/equipo in pyproject.toml.
+pytest==9.1.1
