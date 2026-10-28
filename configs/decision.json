@@ -1,0 +1,12 @@
+{
+  "status": "pending",
+  "description": "TEMPLATE per model: pending decisions must be rejected. Populate from threshold-validation predictions only, then validate binding against actual artifact and split manifests.",
+  "model_version": null,
+  "artifact_sha256": null,
+  "threshold": null,
+  "calibration": null,
+  "assumptions_version": null,
+  "split_role": "validation_threshold",
+  "tie_break": "highest_threshold",
+  "estimated": true
+}
