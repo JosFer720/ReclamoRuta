@@ -1,0 +1,35 @@
+{
+  "status": "pending",
+  "assumptions_version": null,
+  "description": "TEMPLATE: replace nulls and review sources before setting validated; scenarios are estimates, not measured savings.",
+  "units": {"time": "seconds", "currency": "GTQ", "cost_scope": "batch"},
+  "cost_semantics": {
+    "costo_hora": "GTQ per labor hour",
+    "costo_error_ruta_no_detectado": "GTQ per undetected wrong-route case",
+    "costo_inferencia": "GTQ total for baseline batch; scales with projected volume",
+    "costo_operacion": "GTQ total fixed for baseline period; held fixed in volume scenarios"
+  },
+  "assumptions": {
+    "t_manual": null,
+    "t_aceptar": null,
+    "t_corregir": null,
+    "t_revision": null,
+    "costo_hora": null,
+    "q_detectado": null,
+    "costo_error_ruta_no_detectado": null,
+    "costo_inferencia": null,
+    "costo_operacion": null
+  },
+  "evidence": {
+    "t_manual": {"source": null, "estimated": null},
+    "t_aceptar": {"source": null, "estimated": null},
+    "t_corregir": {"source": null, "estimated": null},
+    "t_revision": {"source": null, "estimated": null},
+    "costo_hora": {"source": null, "estimated": null},
+    "q_detectado": {"source": null, "estimated": null},
+    "costo_error_ruta_no_detectado": {"source": null, "estimated": null},
+    "costo_inferencia": {"source": null, "estimated": null},
+    "costo_operacion": {"source": null, "estimated": null}
+  },
+  "required_sources": "Every parameter needs a nonempty evidence.source and explicit boolean evidence.estimated. Keep assumptions estimated until evidence supports measurements."
+}
