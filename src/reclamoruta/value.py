@@ -284,10 +284,11 @@ def select_threshold(
 ) -> dict:
     """Choose maximum estimated net value; exact ties select the highest tau.
 
-    Requires a full validated economic config. Explicitly reports no abstention
-    even when tau=0 is absent from the requested grid. Caller supplies the model
-    artifact hash; this pure function neither reads an artifact nor verifies it.
-    Selecting a threshold does not imply the system should be deployed.
+    Requires a full validated economic config and observed validation cases.
+    Explicitly reports no abstention even when tau=0 is absent from the requested
+    grid. Caller supplies the model artifact hash; this pure function neither
+    reads an artifact nor verifies it. Selecting a threshold does not imply the
+    system should be deployed.
     """
     values = validate_value_config(assumptions)
     binding = validate_decision({
@@ -298,6 +299,8 @@ def select_threshold(
     })
     curve = threshold_curve(labels, scores, predicted_labels, routes, values,
                             thresholds=thresholds, split_role=split_role)
+    if curve[0]["N"] == 0:
+        raise ValueError("Threshold selection requires validation observations")
     selected = max(curve, key=lambda row: (row["valor_neto"], row["threshold"]))
     no_abstention = threshold_curve(labels, scores, predicted_labels, routes, values,
                                    thresholds=[0], split_role=split_role)[0]

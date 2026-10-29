@@ -20,6 +20,10 @@ Thumbs.db
 .DS_Store
 .worktrees/
 
+# Documentos de trabajo exclusivamente locales
+/PLAN_*.md
+/BITACORA*.md
+
 # Datos, pesos y resultados voluminosos: compartir fuera de Git
 data/raw/
 data/processed/

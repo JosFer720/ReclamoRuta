@@ -180,13 +180,25 @@ def test_threshold_selection_binds_artifact_and_compares_no_abstention(value_con
     assert result["selected"]["accepted"] == 1
 
 
+def test_threshold_selection_requires_observed_validation_cases(value_config):
+    with pytest.raises(ValueError, match="observations"):
+        value_module().select_threshold(
+            [], [], [], {"a": "x"}, value_config, model_version="fixture-model",
+            artifact_sha256="a" * 64, calibration={"method": "none", "fitted": False},
+        )
+
+
 def test_threshold_ties_choose_highest_threshold_conservatively(value_config):
+    value_config["assumptions"]["t_revision"] = 5
     result = value_module().select_threshold(
-        [], [], [], {"a": "x"}, value_config, model_version="fixture-model",
-        artifact_sha256="a" * 64, calibration={"method": "none", "fitted": False},
+        ["a", "a"], [0.1, 0.1], ["a", "a"], {"a": "x"}, value_config,
+        model_version="fixture-model", artifact_sha256="a" * 64,
+        calibration={"method": "none", "fitted": False},
     )
     assert result["threshold"] == 1
     assert result["tie_break"] == "highest_threshold"
+    assert result["selected"]["N"] == 2
+    assert result["no_abstention"]["valor_neto"] == result["selected"]["valor_neto"]
 
 
 def test_pending_templates_cannot_execute():
