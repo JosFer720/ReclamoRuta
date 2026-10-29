@@ -81,6 +81,39 @@ def test_explicit_categories_allow_predictions_absent_from_gold():
     assert result["accuracy"] == result["macro_f1"] == 0.0
 
 
+def test_route_metrics_merge_intents_and_measure_wrong_route_with_stable_order():
+    result = evaluate(
+        ["a", "b", "c"],
+        [prediction("b"), prediction("c"), prediction("c")],
+        categories=["c", "b", "a", "d"],
+        routes={"c": "z", "b": "m", "a": "m", "d": "a"},
+    )
+    # a->b is an intent error but correctly routes to m; b->c misroutes.
+    assert result["accuracy"] == pytest.approx(1 / 3)
+    assert result["routing_accuracy"] == pytest.approx(2 / 3)
+    routing = result["routing_metrics"]
+    assert routing["accuracy"] == result["routing_accuracy"]
+    assert routing["confusion_matrix"] == {
+        "labels": ["a", "m", "z"],
+        "matrix": [[0, 0, 0], [0, 1, 1], [0, 0, 1]],
+    }
+    assert routing["per_class"]["m"] == {
+        "precision": 1.0, "recall": 0.5, "f1": 2 / 3,
+        "support": 2, "tp": 1, "fp": 0, "fn": 1,
+    }
+    assert routing["per_class"]["z"] == {
+        "precision": 0.5, "recall": 1.0, "f1": 2 / 3,
+        "support": 1, "tp": 1, "fp": 1, "fn": 0,
+    }
+    assert routing["per_class"]["a"]["support"] == 0
+    assert routing["macro_f1"] == pytest.approx(4 / 9)
+    json.dumps(result, allow_nan=False)
+
+
+def test_route_metrics_are_only_reported_when_routes_are_provided():
+    assert "routing_metrics" not in evaluate(["a"], [prediction()])
+
+
 @pytest.mark.parametrize("labels,predictions,kwargs", [
     ([], [], {}),
     (["a"], [], {}),

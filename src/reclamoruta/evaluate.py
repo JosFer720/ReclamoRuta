@@ -109,6 +109,8 @@ def evaluate_predictions(
     whose F1 is zero in the macro average. Latency quantiles use linear type-7
     interpolation. Top-label ECE uses [low, high) bins, with 1 in the last bin.
     An optional routing map must cover every category, with nonempty route names.
+    Routing metrics use sorted unique route names from that map, including absent
+    routes with zero F1 in the routing macro average, and aggregate intent counts.
     Empty top3 is accepted; present rankings must agree with label and score.
     """
     if len(labels) != len(predictions):
@@ -117,11 +119,17 @@ def evaluate_predictions(
     if isinstance(n_bins, bool) or not isinstance(n_bins, int) or n_bins <= 0:
         raise ValueError("n_bins must be a positive integer")
     indices = {label: index for index, label in enumerate(universe)}
+    route_names = []
+    route_indices = {}
+    route_matrix = []
     if routes is not None:
         if set(routes) != set(universe):
             raise ValueError("routes must map exactly the evaluation categories")
         for route in routes.values():
             _nonempty_string(route, "route")
+        route_names = sorted(set(routes.values()))
+        route_indices = {route: index for index, route in enumerate(route_names)}
+        route_matrix = [[0] * len(route_names) for _ in route_names]
 
     matrix = [[0] * len(universe) for _ in universe]
     bin_counts = [0] * n_bins
@@ -129,7 +137,6 @@ def evaluate_predictions(
     bin_confidence = [0.0] * n_bins
     latencies = []
     versions = set()
-    routing_correct = 0
     for gold, prediction in zip(labels, predictions):
         _nonempty_string(prediction.label, "predicted label")
         if prediction.label not in indices:
@@ -169,7 +176,9 @@ def evaluate_predictions(
         bin_confidence[bin_index] += score
         latencies.append(elapsed)
         if routes is not None:
-            routing_correct += routes[gold] == routes[prediction.label]
+            gold_route = route_indices[routes[gold]]
+            predicted_route = route_indices[routes[prediction.label]]
+            route_matrix[gold_route][predicted_route] += 1
     if len(versions) != 1:
         raise ValueError("predictions must use a single model_version")
 
@@ -193,5 +202,6 @@ def evaluate_predictions(
         "latency_ms": {"p50": _percentile(latencies, 0.5), "p95": _percentile(latencies, 0.95)},
     })
     if routes is not None:
-        result["routing_accuracy"] = routing_correct / len(labels)
+        result["routing_metrics"] = _metrics_from_matrix(route_matrix, route_names)
+        result["routing_accuracy"] = result["routing_metrics"]["accuracy"]
     return result
