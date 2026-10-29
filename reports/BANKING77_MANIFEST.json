@@ -1,0 +1,68 @@
+{
+  "counts": {
+    "test_official": 3080,
+    "test_unique": 3079,
+    "train": 7959,
+    "validation": 2033,
+    "validation_calibration": 498,
+    "validation_model": 996,
+    "validation_threshold": 539
+  },
+  "output_sha256": {
+    "eda.json": "acc4b3b3628913ce6bc993c9432b9fa3e4cbffa8d613e3f39785d9cb89d75262",
+    "label_to_id.json": "9d933a5ace07c7bcc24568dbe73db752cf0dc1bb692395475b1c7f72a76d4e03",
+    "test_official.csv": "ba483fd59c06df7f04b4b1d4738b4f7b6828a591c08cba2532c90dacc60168ac",
+    "test_unique.csv": "12a685f4e15d86719a7caa3e1502808134997b0101a7db674faac61d821b0d06",
+    "train.csv": "38423312780797ce8abd47ce2003fefc4ff0e0155fe11c16367163da1fbda5a4",
+    "validation.csv": "4af39b1b0f794669a468e443486e4c681f9212e772f39269a2ab2f76296ef96c",
+    "validation_calibration.csv": "5d733e3b7b47a9d7db6332cbaa38c9b0a9c2674cc330f4c103f4115c732a81c0",
+    "validation_model.csv": "048b2db2a9c65b074372e1215198031fdaa33a09a6e4259736c134125013ad7f",
+    "validation_threshold.csv": "c61728167af0935bee67fc5023dd6818dbd8962e5d604c3f3386b7dc44214066"
+  },
+  "overlap": {
+    "prepared_train_test_groups": 0,
+    "raw_train_test_groups": 7,
+    "train_validation_groups": 0
+  },
+  "policy": {
+    "group_id": "SHA256(normalized text encoded as UTF-8)",
+    "id": "source filename plus colon plus zero-based data row",
+    "normalization": "Unicode NFKC, casefold, Unicode whitespace collapse",
+    "test": "official untouched; unique view keeps first normalized key",
+    "train_duplicates": "retain first remaining normalized key in original source order",
+    "train_test_overlap": "remove every train row whose normalized key occurs in test",
+    "validation": "sorted categories; original row order; fresh Random(seed) per class; first ceil(n/5)",
+    "validation_subsets": "fresh Random(43) per class in validation order; floor(n/2) model, floor(remainder/2) calibration, rest threshold",
+    "version": 1
+  },
+  "provenance": {
+    "dataset": "PolyAI/banking77",
+    "license_file_sha256": "7e7170e3cebf88a9f60c7b8421418323c09304da1af4d5e90f4da1dc1c8a2661",
+    "manual_privacy_review": "pending",
+    "manual_semantic_review": "pending",
+    "repository": "https://github.com/PolyAI-LDN/task-specific-datasets",
+    "source_directory": "banking_data"
+  },
+  "removed": {
+    "test_duplicate_rows_in_unique_view": 1,
+    "train_duplicate_rows": 4,
+    "train_test_overlap_rows": 7
+  },
+  "schema_version": 1,
+  "seed": 42,
+  "source": {
+    "revision": "57ec275d8078af65b7731c2a98be812d844a6d6b",
+    "sha256": {
+      "LICENSE": "7e7170e3cebf88a9f60c7b8421418323c09304da1af4d5e90f4da1dc1c8a2661",
+      "categories.json": "53261da888122daf2d120d925458631d9619e15d82e56052e7a42e535ce32b63",
+      "test.csv": "d12d6e3bc4c3103966ae786dc435913c0c563dfa328f5a3646d0e62cfeeb474d",
+      "train.csv": "b06e26ac675513959a63135f11b94ea7786ed02da65db93a5650d8838cbc664b"
+    }
+  },
+  "source_counts": {
+    "categories.json": 77,
+    "test.csv": 3080,
+    "train.csv": 10003
+  },
+  "validation_subdivision_seed": 43
+}
