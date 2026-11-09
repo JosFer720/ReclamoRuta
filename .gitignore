@@ -42,5 +42,6 @@ uploads/
 *.mp4
 
 # Se pueden versionar métricas pequeñas y manifiestos sin datos sensibles
+*.egg-info/
 
 .local/

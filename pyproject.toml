@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reclamoruta"
+version = "0.1.0"
+description = "Clasificación de consultas bancarias en inglés y sugerencia de ruta con revisión humana (CC3092, UVG)."
+readme = "README.md"
+requires-python = ">=3.11"
+# data/evaluate/uncertainty/value/contracts/benchmark/study use only the standard library.
+dependencies = []
+
+[project.optional-dependencies]
+# Interfaz. Versiones mínimas verificadas en desarrollo; fijar exactas en el configuration 2.
+app = ["streamlit>=1.40"]
+# Entrenamiento y predictor (equipo). Coordinar versiones/CUDA en el configuration 2;
+# PyTorch para la RTX 5070 Ti se instala desde el índice de PyTorch, no desde aquí.
+model = ["torch>=2.5", "transformers>=4.45", "safetensors>=0.4", "scikit-learn>=1.5"]
+dev = ["pytest==9.1.1", "streamlit>=1.40"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# La configuración de pytest vive en pytest.ini.
