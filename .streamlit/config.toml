@@ -1,0 +1,19 @@
+# Producción: sin trazas al usuario, sin telemetría, sin subida de archivos.
+[client]
+showErrorDetails = "none"
+toolbarMode = "viewer"
+
+[server]
+headless = true
+enableXsrfProtection = true
+enableCORS = true
+maxUploadSize = 1
+maxMessageSize = 5
+fileWatcherType = "none"
+runOnSave = false
+
+[browser]
+gatherUsageStats = false
+
+[logger]
+level = "warning"

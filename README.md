@@ -48,6 +48,34 @@ if (Test-Path -LiteralPath $testScratch) { throw 'El temporal debe ser nuevo' }
 
 La aplicación debe usar `validate_value_config` y `validate_decision` antes de consumir configuraciones, además de verificar hashes contra los archivos de modelo reales. Estos validadores comprueban estructura: no pueden certificar que un costo es verdadero o que un llamador no etiquetó mal un split. No publicar los CSV de mensajes ni usar el test para buscar parámetros. Los ejemplos sintéticos de pruebas no son métricas del producto.
 
+### Aplicación, contratos y medición (Luis, L1/L2)
+
+- `contracts.py`: `Prediction` (inmutable y validado: `label`, `score` en [0, 1], `top3` descendente, `model_version`, `elapsed_ms`), `validate_message` (1–2,000 caracteres sin contar los espacios exteriores), `load_routes`/`validate_routes`, `artifact_digest`, `bind_decision`, `route_message` y `confirm`. `score >= umbral` → la sugerencia se puede aceptar; `score < umbral` → revisión obligatoria. La ruta sale de `configs/routes.json`, no del clasificador.
+- `configs/routes.json`: **propuesta** `rutas-v0.1` con 7 rutas que cubren las 77 intenciones. Es una decisión de diseño del grupo y queda pendiente de aprobación; no son departamentos reales.
+- `app.py`: interfaz en Streamlit. Antes de cargar los pesos verifica catálogo, rutas, decisión y hash del artefacto. Si algo falla muestra un error y se detiene, sin dar respuestas de respaldo. No guarda el texto de los mensajes y las correcciones no reentrenan.
+- `benchmark.py`: `run_benchmark(...)` y CLI. Separa el arranque de la inferencia, hace calentamiento, usa batch 1 y reporta p50/p95 y throughput con reloj monotónico, junto con la identificación del equipo y del modelo. No acepta splits de test, no sobrescribe resultados y no guarda textos.
+- `study.py`: estudio humano de tiempos, condición manual frente a asistida. Usa IDs anónimos `P-xxxxxxxx`, no guarda el texto salvo con `store_text=True`, exporta a un CSV nuevo neutralizando fórmulas, y `summarize` produce `t_manual`, `t_aceptar`, `t_corregir` y `t_revision` para `value.py`.
+
+**Contrato para el predictor (Fabián):** `reclamoruta.predictor.Predictor.load(artifact_dir, device="cpu")` devuelve un objeto con el atributo `model_version`, el método `predict(texts) -> list[contracts.Prediction]` (una predicción por texto, en el mismo orden) y, de forma opcional, `categories`. El artefacto debe incluir un `manifest.json` con los hashes de todos sus archivos, y `Predictor.load` debe verificarlos. El `artifact_sha256` de `configs/decision.json` es el SHA-256 de ese `manifest.json` (`contracts.artifact_digest`).
+
+Instalación editable (alternativa a `requirements-dev.txt`):
+
+```powershell
+python -m pip install -e ".[dev]"     # pruebas + Streamlit
+python -m pip install -e ".[app,model]"  # app con predictor; PyTorch GPU se fija en el plan 2
+```
+
+Ejecutar la app, con un artefacto real y la decisión ya validada:
+
+```powershell
+$env:RECLAMORUTA_ARTIFACT_DIR = 'artifacts/distilbert-v2'
+streamlit run src/reclamoruta/app.py
+```
+
+Otras variables: `RECLAMORUTA_DECISION`, `RECLAMORUTA_ROUTES`, `RECLAMORUTA_CATALOG` y `RECLAMORUTA_DEVICE`. Con el `decision.json` pendiente actual, la app se niega a iniciar a propósito.
+
+Contenedor: `docker build -t reclamoruta .` y luego `docker run -p 8501:8501 -v ${PWD}/artifacts/distilbert-v2:/app/artifacts:ro -v ${PWD}/configs/decision.json:/app/configs/decision.json:ro reclamoruta`. Los pesos se montan en modo de solo lectura y no se copian a la imagen. El contenedor corre sin root, en modo offline para Hugging Face y sin mostrar trazas al usuario (`.streamlit/config.toml`). En el despliegue público, HTTPS y los límites de uso los pone la plataforma o un proxy inverso; no se agrega autenticación casera.
+
 ## Colaboración
 
 Todo se trabaja y se integra sobre `main`. Cada persona usa su propia copia del repositorio, sincroniza antes de empezar y antes de publicar, y coordina cambios en archivos compartidos. No sobrescribir cambios de otro integrante ni forzar un push.
@@ -67,5 +95,5 @@ Guardar los cuatro archivos en `data/raw/banking77/`, ignorados por Git. La revi
 
 Solo se plantea soporte en inglés. Las rutas serán un mapa diseñado por el grupo; no son departamentos reales etiquetados por el dataset. Los tiempos, costos y demanda comercial deben medirse o declararse como supuestos.
 
-La aplicación todavía no está implementada; por ahora se ejecutan los módulos de datos y evaluación. Repositorio configurado como remoto `origin`:
+La interfaz y los contratos están implementados y probados con dobles de prueba; falta integrarlos con el predictor y los pesos reales (plan 2). Repositorio configurado como remoto `origin`:
 https://github.com/JosFer720/ReclamoRuta.git
