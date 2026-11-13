@@ -3,3 +3,8 @@ artifacts/** -text
 # Pesos en Git LFS
 artifacts/**/*.safetensors filter=lfs diff=lfs merge=lfs -text
 artifacts/**/*.pkl filter=lfs diff=lfs merge=lfs -text
+# Entradas y reportes verificados: conservar bytes y aceptar CRLF existentes.
+src/reclamoruta/*.py -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+scripts/*.py -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+configs/*.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+reports/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
