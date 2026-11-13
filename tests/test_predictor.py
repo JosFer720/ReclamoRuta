@@ -5,7 +5,7 @@ import shutil
 import pytest
 
 from reclamoruta.contracts import ContractError, Prediction, artifact_digest
-from reclamoruta.predictor import Predictor
+from reclamoruta.predictor import Predictor, write_manifest
 
 TEXTS = ["card arrive please", "refund missing now", "rate exchange today"]
 
@@ -83,3 +83,12 @@ def test_rejects_missing_or_broken_manifest(copy, tmp_path):
         Predictor.load(copy)
     with pytest.raises(ContractError):
         Predictor.load(tmp_path / "nothing")
+
+
+def test_write_manifest_requires_data_hash(tmp_path):
+    (tmp_path / "model.pkl").write_bytes(b"x")
+    for digest in (None, "", "x" * 64):
+        with pytest.raises(ValueError):
+            write_manifest(tmp_path, "v", "baseline", digest)
+    assert not (tmp_path / "manifest.json").exists()
+

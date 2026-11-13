@@ -92,6 +92,8 @@ Contenedor: `docker build -t reclamoruta .` y luego `docker run -p 8501:8501 -v 
 - `train.py`: DistilBERT con `configs/train_v1.json` (encoder congelado, solo se entrena la cabeza) o `configs/train_v2.json` (fine-tuning completo). Usa AdamW, cross-entropy, semilla 42, máximo 128 tokens, microbatch 8 con acumulación 2, calentamiento y decaimiento lineal de la tasa de aprendizaje y early stopping. Resultados y cambios de configuración: `reports/ENTRENAMIENTO.md`. La época se elige por macro-F1 en `validation_model.csv`; ningún módulo de entrenamiento lee el test.
 - `predictor.py`: `Predictor.load(artifact_dir, device="cpu")` sirve para los tres modelos. Rechaza el artefacto si falta, sobra o cambió algún archivo respecto a `manifest.json`.
 
+Antes de entrenar, `baseline.py` y `train.py` comprueban `train.csv`, `validation_model.csv` y `label_to_id.json` contra `output_sha256` del `manifest.json` de los datos, y se detienen si falta el manifiesto, es inválido o algún hash no coincide. Leen cada archivo una sola vez, así que lo que se entrena es exactamente lo verificado. El `data_manifest_sha256` del artefacto es el hash de ese manifiesto ya comprobado.
+
 Cada artefacto es una carpeta plana con el modelo, `label_to_id.json`, `metrics.json` (curvas por época, tiempo, memoria y truncamiento) y `manifest.json` con el SHA-256 de cada archivo. El baseline se guarda como `model.pkl`: cargar solo artefactos propios, porque pickle ejecuta código. Un directorio de salida existente se rechaza; nunca se sobrescribe un artefacto.
 
 PyTorch con CUDA se instala desde su índice oficial (verificado: `2.11.0+cu128`, Python 3.12, RTX 5070 Ti):

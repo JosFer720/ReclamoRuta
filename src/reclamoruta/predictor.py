@@ -3,6 +3,7 @@
 import hashlib
 import json
 import pickle
+import re
 import time
 from pathlib import Path
 
@@ -20,11 +21,15 @@ def _hashes(artifact_dir: Path) -> dict:
             if path.name != MANIFEST_NAME}
 
 
-def write_manifest(artifact_dir: Path, model_version: str, kind: str, data_dir: Path) -> dict:
+def write_manifest(artifact_dir: Path, model_version: str, kind: str,
+                   data_manifest_sha256: str) -> dict:
     """Call after writing other files."""
+    if not isinstance(data_manifest_sha256, str) \
+            or re.fullmatch(r"[0-9a-f]{64}", data_manifest_sha256) is None:
+        raise ValueError("Falta el hash verificado del manifiesto de datos")
     manifest = {
         "schema_version": 1, "model_version": model_version, "kind": kind,
-        "data_manifest_sha256": _sha256(Path(data_dir) / MANIFEST_NAME),
+        "data_manifest_sha256": data_manifest_sha256,
         "files": _hashes(Path(artifact_dir)),
     }
     (Path(artifact_dir) / MANIFEST_NAME).write_text(

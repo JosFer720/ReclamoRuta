@@ -13,7 +13,7 @@ import transformers
 from transformers import (AutoModelForSequenceClassification, AutoTokenizer,
                           get_linear_schedule_with_warmup)
 
-from reclamoruta.baseline import load_catalog, read_split, scores, write_json
+from reclamoruta.baseline import load_training_data, scores, write_json
 from reclamoruta.predictor import write_manifest
 
 
@@ -81,10 +81,11 @@ def evaluate(model, tokenizer, texts, labels, max_length: int, batch_size: int =
 
 def train_model(config_path: Path, data_dir: Path, output_dir: Path) -> dict:
     config = json.loads(Path(config_path).read_text(encoding="utf-8"))
-    data_dir, output_dir = Path(data_dir), Path(output_dir)
-    catalog = load_catalog(data_dir)
-    train_texts, train_labels = read_split(data_dir, "train", catalog)
-    val_texts, val_labels = read_split(data_dir, "validation_model", catalog)
+    output_dir = Path(output_dir)
+    data = load_training_data(data_dir)
+    catalog = data["catalog"]
+    train_texts, train_labels = data["train"]
+    val_texts, val_labels = data["validation_model"]
     # never overwrite an artifact
     output_dir.mkdir(parents=True)
 
@@ -131,7 +132,7 @@ def train_model(config_path: Path, data_dir: Path, output_dir: Path) -> dict:
     write_json(output_dir / "label_to_id.json", catalog)
     write_json(output_dir / "train_config.json", config)
     write_json(output_dir / "metrics.json", summary)
-    write_manifest(output_dir, config["model_version"], "distilbert", data_dir)
+    write_manifest(output_dir, config["model_version"], "distilbert", data["manifest_sha256"])
     return summary
 
 

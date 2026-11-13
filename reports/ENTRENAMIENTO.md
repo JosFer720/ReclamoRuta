@@ -137,6 +137,7 @@ Cada artefacto se cargó con `Predictor.load(..., device="cpu")` y predijo las 9
 - El tiempo por texto es en lotes de 32 en la CPU de este equipo. No es la latencia de batch 1; esa se mide con `benchmark.py`.
 - V1 se cargó primero en el mismo proceso, así que su tiempo probablemente incluye la importación inicial de PyTorch. No se midió por separado.
 - El SHA-256 de `manifest.json` es el `artifact_sha256` que va en `configs/decision.json`. El manifiesto lista el hash de cada archivo y `Predictor.load` los verifica.
+- Estas corridas se hicieron antes de que `baseline.py` y `train.py` verificaran los datos contra su manifiesto. Se comprobó después: el `data_manifest_sha256` de los tres artefactos coincide con el manifiesto de datos actual, y `train.csv`, `validation_model.csv` y `label_to_id.json` coinciden con su `output_sha256`. Los artefactos no se reentrenaron.
 - El baseline se guarda con pickle. Cargar solo artefactos cuyo hash coincida con esta tabla.
 
 ## Fallos registrados

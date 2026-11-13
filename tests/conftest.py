@@ -1,9 +1,13 @@
 """Tiny offline fixtures."""
 
 import csv
+import hashlib
 import json
+import shutil
 
 import pytest
+
+DATA_FILES = ("train.csv", "validation_model.csv", "label_to_id.json")
 
 WORDS = {"card_arrival": ["card", "arrive", "delivery"],
          "Refund_not_showing_up": ["refund", "missing", "money"],
@@ -32,8 +36,26 @@ def data_dir(tmp_path_factory):
     _write_split(path / "validation_model.csv", _rows(3, offset=3))
     labels = {label: index for index, label in enumerate(sorted(WORDS))}
     (path / "label_to_id.json").write_text(json.dumps(labels), encoding="utf-8")
-    (path / "manifest.json").write_text(json.dumps({"fixture": True}), encoding="utf-8")
+    write_data_manifest(path)
     return path
+
+
+def write_data_manifest(path) -> None:
+    """Same layout as data.py."""
+    hashes = {name: hashlib.sha256((path / name).read_bytes()).hexdigest()
+              for name in DATA_FILES}
+    (path / "manifest.json").write_text(json.dumps({"output_sha256": hashes}), encoding="utf-8")
+
+
+@pytest.fixture
+def tampered(data_dir, tmp_path):
+    """Copy with one stale hash."""
+    def make(name: str):
+        path = shutil.copytree(data_dir, tmp_path / "tampered")
+        content = (path / name).read_bytes()
+        (path / name).write_bytes(content.replace(b"card_arrival", b"exchange_rate", 1))
+        return path
+    return make
 
 
 @pytest.fixture(scope="session")

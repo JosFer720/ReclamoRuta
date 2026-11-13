@@ -2,12 +2,16 @@
 
 import json
 import math
+import shutil
+from pathlib import Path
 
 import pytest
 import torch
 from transformers import AutoModel, AutoModelForSequenceClassification
 
-from reclamoruta import train
+from reclamoruta import baseline, train
+
+FILES = ["train.csv", "validation_model.csv", "label_to_id.json"]
 
 
 def load_config(path) -> dict:
@@ -79,13 +83,37 @@ def test_same_seed_same_curves(data_dir, make_config, tmp_path):
     assert losses[0] == losses[1]
 
 
-def test_reads_only_train_and_validation_model(data_dir, make_config, tmp_path, monkeypatch):
+def test_reads_only_training_files(data_dir, make_config, tmp_path, monkeypatch):
     seen = []
-    original = train.read_split
-    monkeypatch.setattr(train, "read_split",
-                        lambda path, name, catalog: seen.append(name) or original(path, name, catalog))
+    original = Path.read_bytes
+
+    def spy(path):
+        if path.parent == data_dir:
+            seen.append(path.name)
+        return original(path)
+
+    monkeypatch.setattr(Path, "read_bytes", spy)
     train.train_model(make_config(), data_dir, tmp_path / "out")
-    assert seen == ["train", "validation_model"]
+    assert set(seen) == {*FILES, "manifest.json"}
+
+
+@pytest.mark.parametrize("name", FILES)
+def test_modified_data_fails_before_training(tampered, make_config, tmp_path, monkeypatch, name):
+    def never(*args):
+        raise AssertionError("training started")
+
+    monkeypatch.setattr(train, "build_model", never)
+    with pytest.raises(baseline.DataIntegrityError, match=name):
+        train.train_model(make_config(), tampered(name), tmp_path / "out")
+    assert not (tmp_path / "out").exists()
+
+
+def test_missing_data_manifest_fails_before_training(data_dir, make_config, tmp_path):
+    data = shutil.copytree(data_dir, tmp_path / "data")
+    (data / "manifest.json").unlink()
+    with pytest.raises(baseline.DataIntegrityError):
+        train.train_model(make_config(), data, tmp_path / "out")
+    assert not (tmp_path / "out").exists()
 
 
 def test_artifact_files_and_summary(tiny_artifact):
@@ -110,3 +138,9 @@ def test_cli(data_dir, make_config, tmp_path, capsys):
     assert train.main([*args, "--out", str(tmp_path / "out")]) == 0
     assert json.loads(capsys.readouterr().out)["model_version"] == "tiny-v1"
     assert train.main([*args, "--out", str(tmp_path / "out")]) == 2
+
+
+def test_cli_rejects_modified_data(tampered, make_config, tmp_path):
+    args = ["--config", str(make_config()), "--data", str(tampered("train.csv"))]
+    assert train.main([*args, "--out", str(tmp_path / "out")]) == 2
+    assert not (tmp_path / "out").exists()

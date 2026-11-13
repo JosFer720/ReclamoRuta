@@ -2,6 +2,8 @@
 
 import argparse
 import csv
+import hashlib
+import io
 import json
 import pickle
 import sys
@@ -18,16 +20,36 @@ from sklearn.pipeline import make_pipeline
 from reclamoruta.predictor import write_manifest
 
 MODEL_VERSION = "baseline-tfidf"
+TRAINING_FILES = ("train.csv", "validation_model.csv", "label_to_id.json")
 
 
-def load_catalog(data_dir: Path) -> dict[str, int]:
-    return json.loads((Path(data_dir) / "label_to_id.json").read_text(encoding="utf-8"))
+class DataIntegrityError(ValueError):
+    """Data does not match manifest."""
 
 
-def read_split(data_dir: Path, name: str, catalog: dict[str, int]) -> tuple[list[str], list[int]]:
-    """Texts and label ids."""
-    with (Path(data_dir) / f"{name}.csv").open(encoding="utf-8", newline="") as stream:
-        rows = list(csv.DictReader(stream))
+def load_training_data(data_dir: Path) -> dict:
+    """Verify hashes, then parse."""
+    data_dir = Path(data_dir)
+    try:
+        manifest = (data_dir / "manifest.json").read_bytes()
+        expected = json.loads(manifest)["output_sha256"]
+        files = {name: (data_dir / name).read_bytes() for name in TRAINING_FILES}
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise DataIntegrityError("Manifiesto o archivos de datos ausentes o inválidos") from exc
+    for name, content in files.items():
+        if not isinstance(expected, dict) or hashlib.sha256(content).hexdigest() != expected.get(name):
+            raise DataIntegrityError(f"{name} no coincide con el manifiesto de datos")
+    catalog = json.loads(files["label_to_id.json"])
+    return {
+        "catalog": catalog,
+        "train": _split(files["train.csv"], catalog),
+        "validation_model": _split(files["validation_model.csv"], catalog),
+        "manifest_sha256": hashlib.sha256(manifest).hexdigest(),
+    }
+
+
+def _split(content: bytes, catalog: dict[str, int]) -> tuple[list[str], list[int]]:
+    rows = list(csv.DictReader(io.StringIO(content.decode("utf-8"), newline="")))
     return [row["text"] for row in rows], [catalog[row["category"]] for row in rows]
 
 
@@ -41,10 +63,11 @@ def write_json(path: Path, value: dict) -> None:
 
 
 def train_baseline(data_dir: Path, output_dir: Path) -> dict:
-    data_dir, output_dir = Path(data_dir), Path(output_dir)
-    catalog = load_catalog(data_dir)
-    train_texts, train_labels = read_split(data_dir, "train", catalog)
-    val_texts, val_labels = read_split(data_dir, "validation_model", catalog)
+    output_dir = Path(output_dir)
+    data = load_training_data(data_dir)
+    catalog = data["catalog"]
+    train_texts, train_labels = data["train"]
+    val_texts, val_labels = data["validation_model"]
     pipeline = make_pipeline(
         TfidfVectorizer(ngram_range=(1, 2), min_df=2, max_features=30000),
         OneVsRestClassifier(LogisticRegression(C=4, solver="liblinear", max_iter=300)),
@@ -65,7 +88,7 @@ def train_baseline(data_dir: Path, output_dir: Path) -> dict:
         pickle.dump(pipeline, stream)
     write_json(output_dir / "label_to_id.json", catalog)
     write_json(output_dir / "metrics.json", summary)
-    write_manifest(output_dir, MODEL_VERSION, "baseline", data_dir)
+    write_manifest(output_dir, MODEL_VERSION, "baseline", data["manifest_sha256"])
     return summary
 
 
