@@ -23,7 +23,15 @@ $env:BANKING77_RAW_DIR = (Resolve-Path data/raw/banking77).Path
 .\.venv\Scripts\python -m pytest -q
 ```
 
-Los módulos actuales solo usan la biblioteca estándar; pytest es dependencia de pruebas. No requieren CUDA, Transformers ni un modelo entrenado. La configuración de empaquetado y las dependencias de aplicación/GPU están pendientes. Python 3.13.2 es el entorno verificado aquí; no se ha ejecutado una matriz de versiones de Python.
+`requirements-dev.txt` instala el paquete en modo editable con el extra `dev`: pytest, Streamlit y las dependencias de modelos. Sin ellas, las pruebas de interfaz y de modelos fallan; no se omiten. Para las pruebas basta PyTorch para CPU. Las pruebas de modelos usan un DistilBERT diminuto creado en local: no descargan pesos ni repiten entrenamientos reales. Los módulos de datos, evaluación, valor, contratos, benchmark y estudio solo usan la biblioteca estándar.
+
+| Extra | Contenido | Para qué |
+|---|---|---|
+| `app` | `streamlit>=1.49` | Interfaz |
+| `model` | `torch>=2.5`, `transformers>=4.45,<6`, `safetensors>=0.4`, `scikit-learn>=1.5` | Entrenamiento y predictor |
+| `dev` | `pytest==9.1.1` + `app` + `model` | Suite completa |
+
+Suite verificada con Python 3.12.14 en tres entornos aislados: versiones mínimas declaradas (torch 2.5.1, Transformers 4.45.2, safetensors 0.4.5, scikit-learn 1.5.2, Streamlit 1.49.0), Transformers 4.56.2 y Transformers 5.23.0 con torch 2.11.0. Streamlit 1.40–1.48 no sirve: `app.py` usa `form_submit_button(key=...)`. No se ha ejecutado una matriz de versiones de Python.
 
 La preparación no descarga datos ni sobrescribe archivos arbitrarios. Comprueba SHA-256 antes de procesar y permite repetir la misma preparación sin reescribir archivos; otro contenido/semilla en un destino existente se rechaza. Para una política diferente, elegir un directorio de salida nuevo, no borrar datos ajenos para forzar el comando.
 
@@ -60,11 +68,11 @@ En ese resumen, `t_corregir` es tiempo **adicional**, estimado como mediana de l
 
 **Contrato para el predictor:** `reclamoruta.predictor.Predictor.load(artifact_dir, device="cpu")` devuelve un objeto con el atributo `model_version`, el método `predict(texts) -> list[contracts.Prediction]` (una predicción por texto, en el mismo orden) y, de forma opcional, `categories`. El artefacto debe incluir un `manifest.json` con los hashes de todos sus archivos, y `Predictor.load` debe verificarlos. El `artifact_sha256` de `configs/decision.json` es el SHA-256 de ese `manifest.json` (`contracts.artifact_digest`).
 
-Instalación editable (alternativa a `requirements-dev.txt`):
+Instalación editable por partes (alternativa a `requirements-dev.txt`):
 
 ```powershell
-python -m pip install -e ".[dev]"     # pruebas + Streamlit
-python -m pip install -e ".[app,model]"  # app con predictor; elegir PyTorch compatible con la GPU
+python -m pip install -e ".[dev]"        # suite completa: pytest + app + modelos
+python -m pip install -e ".[app,model]"  # solo app con predictor
 ```
 
 Ejecutar la app, con un artefacto real y la decisión ya validada:
@@ -90,7 +98,7 @@ PyTorch con CUDA se instala desde su índice oficial (verificado: `2.11.0+cu128`
 
 ```powershell
 python -m pip install torch --index-url https://download.pytorch.org/whl/cu128
-python -m pip install -e ".[dev,model]"
+python -m pip install -e ".[dev]"
 python -m reclamoruta.baseline --data data/processed/banking77 --out artifacts/baseline
 python -m reclamoruta.train --config configs/train_v1.json --data data/processed/banking77 --out artifacts/distilbert-v1
 python -m reclamoruta.train --config configs/train_v2.json --data data/processed/banking77 --out artifacts/distilbert-v2

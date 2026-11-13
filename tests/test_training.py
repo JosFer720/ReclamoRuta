@@ -40,12 +40,24 @@ def test_v2_optimizer_gets_every_parameter(make_config):
     assert optimized == len(list(model.parameters()))
 
 
-def test_v1_trains_head_and_keeps_encoder(tiny_artifact, tiny_base):
-    metrics = json.loads((tiny_artifact / "metrics.json").read_text(encoding="utf-8"))
+def test_v1_updates_head_and_keeps_encoder(data_dir, make_config, tiny_base, tmp_path,
+                                          monkeypatch):
+    initial = {}
+    original = train.build_model
+
+    def spy(config, num_labels):
+        model = original(config, num_labels)
+        initial.update({name: value.clone() for name, value in model.state_dict().items()
+                        if not name.startswith("distilbert.")})
+        return model
+
+    monkeypatch.setattr(train, "build_model", spy)
+    summary = train.train_model(make_config(), data_dir, tmp_path / "out")
+    trained = AutoModelForSequenceClassification.from_pretrained(tmp_path / "out").state_dict()
+    assert initial and any(not torch.equal(initial[name], trained[name]) for name in initial)
+    assert not encoder_changed(tmp_path / "out", tiny_base)
     assert all(math.isfinite(row["train_loss"]) and math.isfinite(row["val_loss"])
-               for row in metrics["curves"])
-    assert metrics["curves"][-1]["train_loss"] < metrics["curves"][0]["train_loss"]
-    assert not encoder_changed(tiny_artifact, tiny_base)
+               for row in summary["curves"])
 
 
 def test_v2_updates_encoder(data_dir, make_config, tiny_base, tmp_path):

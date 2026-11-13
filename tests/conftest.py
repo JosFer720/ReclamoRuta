@@ -39,12 +39,16 @@ def data_dir(tmp_path_factory):
 @pytest.fixture(scope="session")
 def tiny_base(tmp_path_factory):
     """Random one-layer DistilBERT, no download."""
+    import torch
     from transformers import DistilBertConfig, DistilBertModel, DistilBertTokenizer
 
     path = tmp_path_factory.mktemp("base")
     tokens = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]", *FILLER,
               *(word for words in WORDS.values() for word in words)]
-    DistilBertTokenizer(vocab={token: i for i, token in enumerate(tokens)}).save_pretrained(path)
+    # vocab file works 4.x–5.x
+    (path / "vocab.txt").write_text("\n".join(tokens) + "\n", encoding="utf-8")
+    DistilBertTokenizer.from_pretrained(path).save_pretrained(path)
+    torch.manual_seed(0)
     DistilBertModel(DistilBertConfig(
         vocab_size=len(tokens), dim=16, n_layers=1, n_heads=2, hidden_dim=32,
         max_position_embeddings=32)).save_pretrained(path)

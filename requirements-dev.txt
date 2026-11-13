@@ -1,4 +1,4 @@
-# Current modules use only Python's standard library at runtime.
-# Reproduces the test runner used during implementation; app/GPU dependencies
-# remain pending in the application and training configuration.
-pytest==9.1.1
+# Suite completa: pytest, interfaz (Streamlit) y modelos (PyTorch, Transformers,
+# scikit-learn). Versiones declaradas en pyproject.toml, extra "dev".
+# Para usar la GPU, instalar antes PyTorch con CUDA desde su índice oficial.
+-e .[dev]

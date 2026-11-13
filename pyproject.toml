@@ -12,12 +12,14 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
-# Interfaz. Versiones mínimas verificadas en desarrollo; fijar exactas al desplegar.
-app = ["streamlit>=1.40"]
-# Entrenamiento y predictor. Comprobar compatibilidad de versiones y CUDA;
-# PyTorch para la RTX 5070 Ti se instala desde el índice de PyTorch, no desde aquí.
-model = ["torch>=2.5", "transformers>=4.45", "safetensors>=0.4", "scikit-learn>=1.5"]
-dev = ["pytest==9.1.1", "streamlit>=1.40"]
+# Interfaz. 1.49 es la primera con form_submit_button(key=...), que usa app.py.
+app = ["streamlit>=1.49"]
+# Entrenamiento y predictor. Suite verificada con los mínimos (torch 2.5.1,
+# transformers 4.45.2, safetensors 0.4.5, scikit-learn 1.5.2) y con transformers
+# 4.56.2 y 5.23.0. PyTorch con CUDA se instala antes desde el índice de PyTorch.
+model = ["torch>=2.5", "transformers>=4.45,<6", "safetensors>=0.4", "scikit-learn>=1.5"]
+# Suite completa: pruebas, interfaz y modelos.
+dev = ["pytest==9.1.1", "reclamoruta[app,model]"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
