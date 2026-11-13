@@ -1,0 +1,14 @@
+{
+  "model_version": "distilbert-v1",
+  "base_model": "distilbert/distilbert-base-uncased",
+  "revision": "12040accade4e8a0f71eabdb258fecc2e7e948be",
+  "freeze_encoder": true,
+  "lr": 0.001,
+  "max_epochs": 40,
+  "patience": 3,
+  "max_length": 128,
+  "batch_size": 8,
+  "accumulation": 2,
+  "seed": 42,
+  "warmup_ratio": 0.1
+}
