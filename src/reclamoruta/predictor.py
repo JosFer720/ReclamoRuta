@@ -61,7 +61,7 @@ def _torch_scorer(artifact_dir: Path, device: str):
 
     def probabilities(texts: list[str]) -> list[list[float]]:
         batch = tokenizer(texts, padding=True, truncation=True, max_length=max_length,
-                          return_tensors="pt").to(device)
+                          return_token_type_ids=False, return_tensors="pt").to(device)
         with torch.no_grad():
             return torch.softmax(model(**batch).logits, dim=1).tolist()
 

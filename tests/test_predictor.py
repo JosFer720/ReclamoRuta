@@ -1,5 +1,6 @@
 """Predictor loading and contract."""
 
+import json
 import math
 import shutil
 
@@ -20,6 +21,46 @@ def artifact(request, baseline_artifact, tiny_artifact):
 @pytest.fixture
 def copy(artifact, tmp_path):
     return shutil.copytree(artifact, tmp_path / "copy")
+
+
+@pytest.fixture
+def bert_tokenizer_artifact(tiny_artifact, tmp_path):
+    """DistilBERT artifact with tokenizer metadata produced by Transformers 5."""
+    path = shutil.copytree(tiny_artifact, tmp_path / "bert-tokenizer")
+    config_path = path / "tokenizer_config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["tokenizer_class"] = "BertTokenizer"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    manifest = json.loads((path / "manifest.json").read_text(encoding="utf-8"))
+    write_manifest(path, manifest["model_version"], manifest["kind"],
+                   manifest["data_manifest_sha256"])
+    return path
+
+
+def test_predicts_distilbert_with_bert_tokenizer_metadata(bert_tokenizer_artifact):
+    predictions = Predictor.load(bert_tokenizer_artifact).predict(TEXTS)
+    assert len(predictions) == 3
+    for prediction in predictions:
+        assert prediction.model_version == "tiny-v1"
+        assert len(prediction.top3) == 3
+        assert sum(score for _, score in prediction.top3) == pytest.approx(1.0)
+
+
+def test_training_encode_accepts_distilbert_with_bert_tokenizer_metadata(bert_tokenizer_artifact):
+    import torch
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+    from reclamoruta.train import _encode
+
+    tokenizer = AutoTokenizer.from_pretrained(bert_tokenizer_artifact, local_files_only=True)
+    model = AutoModelForSequenceClassification.from_pretrained(
+        bert_tokenizer_artifact, local_files_only=True)
+    batch = _encode(tokenizer, TEXTS, 16, "cpu")
+    output = model(**batch, labels=torch.tensor([1, 0, 2]))
+    assert output.logits.shape == (3, 3)
+    assert torch.isfinite(output.loss)
+    output.loss.backward()
+    assert model.classifier.weight.grad is not None
 
 
 def test_loads_version_and_catalog(artifact):

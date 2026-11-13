@@ -32,7 +32,7 @@ def build_optimizer(model, lr: float) -> torch.optim.AdamW:
 
 def _encode(tokenizer, texts: list[str], max_length: int, device):
     return tokenizer(texts, padding=True, truncation=True, max_length=max_length,
-                     return_tensors="pt").to(device)
+                     return_token_type_ids=False, return_tensors="pt").to(device)
 
 
 def build_scheduler(optimizer, config: dict, n_train: int):
