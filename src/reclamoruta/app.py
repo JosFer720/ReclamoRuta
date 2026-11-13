@@ -11,6 +11,8 @@ Environment variables (paths relative to the working directory):
 - ``RECLAMORUTA_ROUTES`` (default ``configs/routes.json``).
 - ``RECLAMORUTA_CATALOG`` (default ``reports/BANKING77_LABEL_TO_ID.json``).
 - ``RECLAMORUTA_DEVICE`` (default ``cpu``).
+- ``RECLAMORUTA_CALIBRATION`` (default ``configs/calibration.json``): only read
+  when the decision declares a fitted calibration.
 
 The app never stores message text, never retrains on corrections and never
 invents a fallback answer when the model is missing or fails.
@@ -26,7 +28,7 @@ from pathlib import Path
 
 from reclamoruta.contracts import (
     BoundDecision, ContractError, MAX_MESSAGE_CHARS, PredictorLike, RouteMap,
-    artifact_digest, bind_decision, confirm, load_routes, route_message,
+    artifact_digest, bind_decision, confirm, load_calibration, load_routes, route_message,
 )
 from reclamoruta.value import validate_decision
 
@@ -71,12 +73,13 @@ def _read_json(path: Path, what: str) -> object:
 
 def load_runtime(
     *, artifact_dir: Path, decision_path: Path, routes_path: Path, catalog_path: Path,
-    device: str = "cpu", loader: Loader | None = None,
+    device: str = "cpu", loader: Loader | None = None, calibration_path: Path | None = None,
 ) -> Runtime:
     """Load and cross-check catalog, routes, decision and predictor, cheapest first.
 
-    The decision's artifact hash is checked against ``manifest.json`` before any
-    weights are loaded. Every failure raises ``AppConfigError``; nothing falls back.
+    The decision's artifact hash and any declared calibration file are checked
+    before any weights are loaded; the calibration is then applied to the
+    predictor. Every failure raises ``AppConfigError``; nothing falls back.
     """
     catalog = _read_json(catalog_path, "el catálogo de intenciones")
     if not isinstance(catalog, dict) or not catalog:
@@ -95,6 +98,19 @@ def load_runtime(
         raise AppConfigError(f"Decisión no válida o pendiente: {exc}") from exc
     if checked["artifact_sha256"] != digest:
         raise AppConfigError("La decisión no corresponde a este artefacto (hash de manifest distinto)")
+    temperature = None
+    if checked["calibration"]["fitted"]:
+        if calibration_path is None:
+            raise AppConfigError(
+                "La decisión declara calibración pero falta el archivo de calibración"
+            )
+        try:
+            temperature = load_calibration(
+                calibration_path, calibration=checked["calibration"],
+                model_version=checked["model_version"], artifact_sha256=digest,
+            )
+        except ContractError as exc:
+            raise AppConfigError(str(exc)) from exc
 
     try:
         predictor = (loader or _default_loader)(Path(artifact_dir), device)
@@ -116,6 +132,14 @@ def load_runtime(
         )
     except ContractError as exc:
         raise AppConfigError(str(exc)) from exc
+    if temperature is not None:
+        calibrate = getattr(predictor, "with_calibration", None)
+        if calibrate is None:
+            raise AppConfigError("El predictor no puede aplicar la calibración declarada")
+        try:
+            predictor = calibrate(temperature, bound.calibration_sha256)
+        except ContractError as exc:
+            raise AppConfigError(str(exc)) from exc
     return Runtime(predictor, bound, routes)
 
 
@@ -201,6 +225,7 @@ class _Settings:
     routes_path: str
     catalog_path: str
     device: str
+    calibration_path: str
 
 
 def _settings() -> _Settings:
@@ -213,6 +238,7 @@ def _settings() -> _Settings:
         routes_path=os.environ.get("RECLAMORUTA_ROUTES", "configs/routes.json"),
         catalog_path=os.environ.get("RECLAMORUTA_CATALOG", "reports/BANKING77_LABEL_TO_ID.json"),
         device=os.environ.get("RECLAMORUTA_DEVICE", "cpu"),
+        calibration_path=os.environ.get("RECLAMORUTA_CALIBRATION", "configs/calibration.json"),
     )
 
 
@@ -226,7 +252,7 @@ def main() -> None:
         return load_runtime(
             artifact_dir=Path(settings.artifact_dir), decision_path=Path(settings.decision_path),
             routes_path=Path(settings.routes_path), catalog_path=Path(settings.catalog_path),
-            device=settings.device,
+            device=settings.device, calibration_path=Path(settings.calibration_path),
         )
 
     try:

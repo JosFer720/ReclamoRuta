@@ -82,15 +82,24 @@ $env:RECLAMORUTA_ARTIFACT_DIR = 'artifacts/distilbert-v2'
 streamlit run src/reclamoruta/app.py
 ```
 
-Otras variables: `RECLAMORUTA_DECISION`, `RECLAMORUTA_ROUTES`, `RECLAMORUTA_CATALOG` y `RECLAMORUTA_DEVICE`. Con el `decision.json` pendiente actual, la app se niega a iniciar a propósito.
+Otras variables: `RECLAMORUTA_DECISION`, `RECLAMORUTA_ROUTES`, `RECLAMORUTA_CATALOG`, `RECLAMORUTA_DEVICE` y `RECLAMORUTA_CALIBRATION`. Con el `decision.json` pendiente actual, la app se niega a iniciar a propósito.
 
-Contenedor: `docker build -t reclamoruta .` y luego `docker run -p 8501:8501 -v ${PWD}/artifacts/distilbert-v2:/app/artifacts:ro -v ${PWD}/configs/decision.json:/app/configs/decision.json:ro reclamoruta`. Los pesos se montan en modo de solo lectura y no se copian a la imagen. El contenedor corre sin root, en modo offline para Hugging Face y sin mostrar trazas al usuario (`.streamlit/config.toml`). En el despliegue público, HTTPS y los límites de uso los pone la plataforma o un proxy inverso; no se agrega autenticación casera.
+**Calibración.** Si la decisión declara `calibration.fitted = true`, la app lee el archivo de `RECLAMORUTA_CALIBRATION` (por defecto `configs/calibration.json`) antes de cargar los pesos y se detiene si falta, si su SHA-256 no es el `calibration.artifact_sha256` de la decisión o si pertenece a otro modelo o artefacto. Solo se admite escalado por temperatura (`method: "temperature"`); cualquier otro método se rechaza en lugar de mostrarse como calibrado. El predictor aplica `softmax(log p / T)` a la distribución completa antes de comparar con el umbral. Formato:
+
+```json
+{"method": "temperature", "temperature": 1.3, "split_role": "validation_calibration",
+ "model_version": "distilbert-v2", "artifact_sha256": "<SHA-256 del manifest.json del modelo>"}
+```
+
+La temperatura se ajusta solo con `validation_calibration.csv`; este repositorio todavía no incluye el código que la ajusta ni un archivo de calibración real.
+
+Contenedor: `docker build -t reclamoruta .` y luego `docker run -p 8501:8501 -v ${PWD}/artifacts/distilbert-v2:/app/artifacts:ro -v ${PWD}/configs/decision.json:/app/configs/decision.json:ro reclamoruta`. Con una decisión calibrada, montar también `-v ${PWD}/configs/calibration.json:/app/configs/calibration.json:ro`. Los pesos se montan en modo de solo lectura y no se copian a la imagen. El contenedor corre sin root, en modo offline para Hugging Face y sin mostrar trazas al usuario (`.streamlit/config.toml`). En el despliegue público, HTTPS y los límites de uso los pone la plataforma o un proxy inverso; no se agrega autenticación casera.
 
 ### Entrenamiento y predictor
 
 - `baseline.py`: TF-IDF (1–2-gramas, `min_df=2`, 30,000 atributos) + regresión logística One-vs-Rest.
 - `train.py`: DistilBERT con `configs/train_v1.json` (encoder congelado, solo se entrena la cabeza) o `configs/train_v2.json` (fine-tuning completo). Usa AdamW, cross-entropy, semilla 42, máximo 128 tokens, microbatch 8 con acumulación 2, calentamiento y decaimiento lineal de la tasa de aprendizaje y early stopping. Resultados y cambios de configuración: `reports/ENTRENAMIENTO.md`. La época se elige por macro-F1 en `validation_model.csv`; ningún módulo de entrenamiento lee el test.
-- `predictor.py`: `Predictor.load(artifact_dir, device="cpu")` sirve para los tres modelos. Rechaza el artefacto si falta, sobra o cambió algún archivo respecto a `manifest.json`.
+- `predictor.py`: `Predictor.load(artifact_dir, device="cpu")` sirve para los tres modelos. Rechaza el artefacto si falta, sobra o cambió algún archivo respecto a `manifest.json`. `with_calibration(temperature, sha256)` devuelve una copia que aplica el escalado por temperatura.
 
 Antes de entrenar, `baseline.py` y `train.py` comprueban `train.csv`, `validation_model.csv` y `label_to_id.json` contra `output_sha256` del `manifest.json` de los datos, y se detienen si falta el manifiesto, es inválido o algún hash no coincide. Leen cada archivo una sola vez, así que lo que se entrena es exactamente lo verificado. El `data_manifest_sha256` del artefacto es el hash de ese manifiesto ya comprobado.
 

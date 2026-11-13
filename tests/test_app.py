@@ -53,10 +53,10 @@ class LoadedPredictor:
         raise AssertionError("loading must not classify")
 
 
-def load(tmp_path, artifact, decision, loader):
+def load(tmp_path, artifact, decision, loader, calibration=None):
     return app().load_runtime(
         artifact_dir=artifact, decision_path=decision, routes_path=ROUTES,
-        catalog_path=CATALOG, loader=loader,
+        catalog_path=CATALOG, loader=loader, calibration_path=calibration,
     )
 
 
@@ -116,6 +116,80 @@ def test_predictor_with_different_catalog_is_rejected(tmp_path):
         load(tmp_path, artifact, write_decision(tmp_path, digest), lambda d, device: predictor)
 
 
+# --- Calibration -----------------------------------------------------------
+
+class CalibratablePredictor(LoadedPredictor):
+    calibration_sha256 = None
+
+    def with_calibration(self, temperature, calibration_sha256):
+        calibrated = CalibratablePredictor(self.model_version)
+        calibrated.temperature = temperature
+        calibrated.calibration_sha256 = calibration_sha256
+        return calibrated
+
+
+def write_calibration(tmp_path, digest, **changes):
+    value = {"method": "temperature", "temperature": 1.5, "split_role": "validation_calibration",
+             "model_version": "distilbert-v1", "artifact_sha256": digest, **changes}
+    path = tmp_path / "calibration.json"
+    path.write_text(json.dumps(value), encoding="utf-8")
+    return path, hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def calibrated_decision(tmp_path, digest, calibration_sha, method="temperature"):
+    return write_decision(tmp_path, digest, calibration={
+        "method": method, "fitted": True, "split_role": "validation_calibration",
+        "artifact_sha256": calibration_sha,
+    })
+
+
+def test_fitted_calibration_is_applied_to_the_predictor(tmp_path):
+    artifact, digest = make_artifact(tmp_path)
+    path, sha = write_calibration(tmp_path, digest)
+    runtime = load(tmp_path, artifact, calibrated_decision(tmp_path, digest, sha),
+                   lambda d, device: CalibratablePredictor(), calibration=path)
+    assert runtime.decision.calibrated is True
+    assert runtime.predictor.temperature == 1.5
+    assert runtime.predictor.calibration_sha256 == sha
+
+
+def test_fitted_calibration_without_file_is_rejected_before_loading(tmp_path):
+    artifact, digest = make_artifact(tmp_path)
+    calls = []
+    for calibration in (None, tmp_path / "missing.json"):
+        with pytest.raises(app().AppConfigError, match="calibración"):
+            load(tmp_path, artifact, calibrated_decision(tmp_path, digest, "c" * 64),
+                 lambda d, device: calls.append(d) or CalibratablePredictor(), calibration)
+    assert calls == []
+
+
+def test_modified_calibration_file_is_rejected_before_loading(tmp_path):
+    artifact, digest = make_artifact(tmp_path)
+    path, sha = write_calibration(tmp_path, digest)
+    write_calibration(tmp_path, digest, temperature=0.2)
+    calls = []
+    with pytest.raises(app().AppConfigError, match="hash"):
+        load(tmp_path, artifact, calibrated_decision(tmp_path, digest, sha),
+             lambda d, device: calls.append(d) or CalibratablePredictor(), path)
+    assert calls == []
+
+
+def test_unsupported_calibration_method_is_rejected(tmp_path):
+    artifact, digest = make_artifact(tmp_path)
+    path, sha = write_calibration(tmp_path, digest, method="isotonic")
+    with pytest.raises(app().AppConfigError, match="no soportado"):
+        load(tmp_path, artifact, calibrated_decision(tmp_path, digest, sha, method="isotonic"),
+             lambda d, device: CalibratablePredictor(), path)
+
+
+def test_predictor_that_cannot_calibrate_is_rejected(tmp_path):
+    artifact, digest = make_artifact(tmp_path)
+    path, sha = write_calibration(tmp_path, digest)
+    with pytest.raises(app().AppConfigError, match="calibración"):
+        load(tmp_path, artifact, calibrated_decision(tmp_path, digest, sha),
+             lambda d, device: LoadedPredictor(), path)
+
+
 # --- UI with AppTest -----------------------------------------------------------
 
 def fake_app_script():
@@ -132,8 +206,12 @@ def fake_app_script():
     catalog = list(_json.loads((root / "reports" / "BANKING77_LABEL_TO_ID.json").read_text(encoding="utf-8")))
     routes = _c.load_routes(root / "configs" / "routes.json", catalog)
 
+    calibration = st.session_state.get("fake_calibration", {"method": "none", "fitted": False})
+
     class FakePredictor:
         model_version = "fake-v1"
+        calibration_sha256 = None if st.session_state.get("fake_skip_calibration") \
+            else calibration.get("artifact_sha256")
 
         def predict(self, texts):
             st.session_state["fake_calls"] = st.session_state.get("fake_calls", 0) + 1
@@ -143,7 +221,6 @@ def fake_app_script():
             score = st.session_state.get("fake_score", 0.9)
             return [_c.Prediction(label, score, [(label, score)], "fake-v1", 3.0)]
 
-    calibration = st.session_state.get("fake_calibration", {"method": "none", "fitted": False})
     decision = _c.BoundDecision("fake-v1", "a" * 64, 0.6, calibration, "s-v1")
     _app.render(_app.Runtime(FakePredictor(), decision, routes, test_double=True))
 
@@ -216,6 +293,19 @@ def test_calibrated_score_is_labeled_as_calibrated(at):
     submit(at, "Where is my new card?")
     assert "calibrad" in all_text(at)
     assert "sin calibrar" not in all_text(at)
+
+
+def test_declared_but_unapplied_calibration_shows_no_score(at):
+    at.session_state["fake_calibration"] = {
+        "method": "temperature", "fitted": True, "split_role": "validation_calibration",
+        "artifact_sha256": "c" * 64,
+    }
+    at.session_state["fake_skip_calibration"] = True
+    at.run()
+    submit(at, "Where is my new card?")
+    assert "fake_calls" not in at.session_state
+    assert "result" not in at.session_state
+    assert any("calibración" in w.value for w in at.warning)
 
 
 def test_low_score_requires_review(at):

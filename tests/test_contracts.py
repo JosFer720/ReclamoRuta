@@ -257,3 +257,90 @@ def test_correction_derives_route_from_map_and_flags_change():
     assert changed.corrected is True and changed.route == routes.intent_to_route["compromised_card"]
     with pytest.raises(c.ContractError):
         c.confirm(result, "not_an_intent", routes)
+
+
+# --- Calibration ----------------------------------------------------------
+
+def write_calibration(tmp_path, **changes):
+    value = {"method": "temperature", "temperature": 2.0, "split_role": "validation_calibration",
+             "model_version": "distilbert-v1", "artifact_sha256": SHA_A, **changes}
+    path = tmp_path / "calibration.json"
+    path.write_text(json.dumps(value), encoding="utf-8")
+    return path, hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def fitted(digest, method="temperature"):
+    return {"method": method, "fitted": True, "split_role": "validation_calibration",
+            "artifact_sha256": digest}
+
+
+def load(path, calibration):
+    return contracts().load_calibration(
+        path, calibration=calibration, model_version="distilbert-v1", artifact_sha256=SHA_A)
+
+
+def calibrated_bound(digest):
+    return contracts().bind_decision(
+        decision(calibration=fitted(digest)), model_version="distilbert-v1", artifact_sha256=SHA_A)
+
+
+def test_calibration_file_returns_verified_temperature(tmp_path):
+    path, digest = write_calibration(tmp_path)
+    assert load(path, fitted(digest)) == 2.0
+
+
+def test_missing_calibration_file_is_rejected(tmp_path):
+    with pytest.raises(contracts().ContractError, match="calibración"):
+        load(tmp_path / "missing.json", fitted("c" * 64))
+
+
+def test_modified_calibration_file_is_rejected(tmp_path):
+    path, digest = write_calibration(tmp_path)
+    write_calibration(tmp_path, temperature=0.5)
+    with pytest.raises(contracts().ContractError, match="hash"):
+        load(path, fitted(digest))
+
+
+@pytest.mark.parametrize("changes", [
+    {"model_version": "distilbert-v2"}, {"artifact_sha256": SHA_B},
+    {"split_role": "validation_threshold"}, {"method": "isotonic"},
+    {"temperature": 0}, {"temperature": -1.0}, {"temperature": "2"}, {"temperature": True},
+    {"temperature": float("nan")}, {"temperature": float("inf")},
+])
+def test_calibration_for_another_model_or_invalid_temperature_is_rejected(tmp_path, changes):
+    path, digest = write_calibration(tmp_path, **changes)
+    with pytest.raises(contracts().ContractError):
+        load(path, fitted(digest))
+
+
+def test_unsupported_calibration_method_is_rejected(tmp_path):
+    path, digest = write_calibration(tmp_path, method="isotonic")
+    with pytest.raises(contracts().ContractError, match="no soportado"):
+        load(path, fitted(digest, method="isotonic"))
+
+
+def test_declared_calibration_not_applied_is_rejected_before_predicting():
+    c = contracts()
+    predictor = CountingPredictor()
+    with pytest.raises(c.ContractError, match="calibración"):
+        c.route_message("msg", predictor, calibrated_bound("c" * 64), repo_routes())
+    assert predictor.calls == []
+
+
+@pytest.mark.parametrize("applied,declared", [("d" * 64, "c" * 64), ("c" * 64, None)])
+def test_applied_calibration_must_match_decision(applied, declared):
+    c = contracts()
+    predictor = CountingPredictor()
+    predictor.calibration_sha256 = applied
+    decision_ = calibrated_bound(declared) if declared else bound()
+    with pytest.raises(c.ContractError, match="calibración"):
+        c.route_message("msg", predictor, decision_, repo_routes())
+    assert predictor.calls == []
+
+
+def test_matching_applied_calibration_is_marked_calibrated():
+    c = contracts()
+    predictor = CountingPredictor()
+    predictor.calibration_sha256 = "c" * 64
+    result = c.route_message("msg", predictor, calibrated_bound("c" * 64), repo_routes())
+    assert result.calibrated is True

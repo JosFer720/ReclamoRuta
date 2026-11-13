@@ -1,10 +1,12 @@
 """Predictor loading and contract."""
 
+import math
 import shutil
 
 import pytest
 
-from reclamoruta.contracts import ContractError, Prediction, artifact_digest
+from reclamoruta.contracts import (ContractError, Prediction, artifact_digest, bind_decision,
+                                   route_message, validate_routes)
 from reclamoruta.predictor import Predictor, write_manifest
 
 TEXTS = ["card arrive please", "refund missing now", "rate exchange today"]
@@ -92,3 +94,64 @@ def test_write_manifest_requires_data_hash(tmp_path):
             write_manifest(tmp_path, "v", "baseline", digest)
     assert not (tmp_path / "manifest.json").exists()
 
+
+# --- Calibration ----------------------------------------------------------
+
+def test_uncalibrated_by_default(artifact):
+    assert Predictor.load(artifact).calibration_sha256 is None
+
+
+def test_temperature_rescales_scores(artifact):
+    raw = Predictor.load(artifact)
+    calibrated = raw.with_calibration(3.0, "c" * 64)
+    assert calibrated.calibration_sha256 == "c" * 64
+    assert calibrated.model_version == raw.model_version
+    for before, after in zip(raw.predict(TEXTS), calibrated.predict(TEXTS)):
+        # fixture has 3 classes
+        logits = {label: math.log(score) / 3.0 for label, score in before.top3}
+        total = sum(math.exp(value) for value in logits.values())
+        expected = {label: math.exp(value) / total for label, value in logits.items()}
+        assert after.label == before.label
+        assert dict(after.top3) == pytest.approx(expected)
+        assert after.score < before.score
+
+
+def test_temperature_one_keeps_scores(artifact):
+    raw = Predictor.load(artifact)
+    same = raw.with_calibration(1.0, "c" * 64)
+    for before, after in zip(raw.predict(TEXTS), same.predict(TEXTS)):
+        assert dict(after.top3) == pytest.approx(dict(before.top3))
+
+
+@pytest.mark.parametrize("temperature", [0, -1.0, math.nan, math.inf, True, "2"])
+def test_invalid_temperature_is_rejected(baseline_artifact, temperature):
+    with pytest.raises(ContractError):
+        Predictor.load(baseline_artifact).with_calibration(temperature, "c" * 64)
+
+
+def test_calibration_changes_the_review_decision(baseline_artifact):
+    raw = Predictor.load(baseline_artifact)
+    calibrated = raw.with_calibration(3.0, "c" * 64)
+    raw_score = raw.predict(TEXTS[:1])[0].score
+    calibrated_score = calibrated.predict(TEXTS[:1])[0].score
+    threshold = round((raw_score + calibrated_score) / 2, 6)
+    assert calibrated_score < threshold <= raw_score
+    routes = validate_routes({"version": "t", "status": "t",
+                              "routes": {"r": {"name": "R", "description": "d"}},
+                              "intents": {label: "r" for label in raw.categories}}, raw.categories)
+    digest = artifact_digest(baseline_artifact)
+
+    def decision(calibration):
+        return bind_decision({
+            "status": "validated", "split_role": "validation_threshold",
+            "model_version": raw.model_version, "artifact_sha256": digest,
+            "threshold": threshold, "calibration": calibration, "assumptions_version": "s-v1",
+        }, model_version=raw.model_version, artifact_sha256=digest)
+
+    plain = route_message(TEXTS[0], raw, decision({"method": "none", "fitted": False}), routes)
+    fitted = decision({"method": "temperature", "fitted": True,
+                       "split_role": "validation_calibration", "artifact_sha256": "c" * 64})
+    scaled = route_message(TEXTS[0], calibrated, fitted, routes)
+    assert (plain.needs_review, plain.calibrated) == (False, False)
+    assert (scaled.needs_review, scaled.calibrated) == (True, True)
+    assert scaled.score == pytest.approx(calibrated_score)

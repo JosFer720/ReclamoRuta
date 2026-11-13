@@ -2,12 +2,13 @@
 
 import hashlib
 import json
+import math
 import pickle
 import re
 import time
 from pathlib import Path
 
-from reclamoruta.contracts import MANIFEST_NAME, ContractError, Prediction
+from reclamoruta.contracts import MANIFEST_NAME, ContractError, Prediction, check_temperature
 
 _BATCH = 32
 
@@ -70,10 +71,13 @@ def _torch_scorer(artifact_dir: Path, device: str):
 class Predictor:
     """Baseline and DistilBERT, same interface."""
 
-    def __init__(self, model_version: str, categories: list[str], probabilities):
+    def __init__(self, model_version: str, categories: list[str], probabilities,
+                 temperature: float = 1.0, calibration_sha256: str | None = None):
         self.model_version = model_version
         self.categories = categories
         self._probabilities = probabilities
+        self.temperature = temperature
+        self.calibration_sha256 = calibration_sha256
 
     @classmethod
     def load(cls, artifact_dir: Path, device: str = "cpu") -> "Predictor":
@@ -89,6 +93,11 @@ class Predictor:
             probabilities = _torch_scorer(artifact_dir, device)
         return cls(manifest["model_version"], categories, probabilities)
 
+    def with_calibration(self, temperature: float, calibration_sha256: str) -> "Predictor":
+        """Copy with temperature scaling."""
+        return Predictor(self.model_version, self.categories, self._probabilities,
+                         check_temperature(temperature), calibration_sha256)
+
     def predict(self, texts: list[str]) -> list[Prediction]:
         """Keeps input order."""
         if not texts:
@@ -97,7 +106,17 @@ class Predictor:
         rows = [row for start in range(0, len(texts), _BATCH)
                 for row in self._probabilities(texts[start:start + _BATCH])]
         elapsed_ms = (time.perf_counter() - started) * 1000 / len(texts)
-        return [self._prediction(row, elapsed_ms) for row in rows]
+        return [self._prediction(self._scale(row), elapsed_ms) for row in rows]
+
+    def _scale(self, row) -> list[float]:
+        if self.temperature == 1.0:
+            return list(row)
+        # log p equals logits plus constant
+        logits = [math.log(max(float(p), 1e-12)) / self.temperature for p in row]
+        top = max(logits)
+        weights = [math.exp(value - top) for value in logits]
+        total = sum(weights)
+        return [weight / total for weight in weights]
 
     def _prediction(self, row, elapsed_ms: float) -> Prediction:
         best = sorted(range(len(row)), key=lambda index: -row[index])[:3]

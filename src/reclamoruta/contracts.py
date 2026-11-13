@@ -198,6 +198,11 @@ class BoundDecision:
     def calibrated(self) -> bool:
         return bool(self.calibration.get("fitted"))
 
+    @property
+    def calibration_sha256(self) -> str | None:
+        """Calibration file the predictor must apply."""
+        return self.calibration.get("artifact_sha256") if self.calibrated else None
+
 
 def bind_decision(decision: object, *, model_version: str, artifact_sha256: str) -> BoundDecision:
     """Validate a decision and reject it unless it belongs to this exact model."""
@@ -215,6 +220,52 @@ def bind_decision(decision: object, *, model_version: str, artifact_sha256: str)
         checked["model_version"], checked["artifact_sha256"], checked["threshold"],
         checked["calibration"], checked["assumptions_version"],
     )
+
+
+# --- Calibration ------------------------------------------------------------
+
+CALIBRATION_METHODS = ("temperature",)
+
+
+def load_calibration(
+    path: Path, *, calibration: Mapping, model_version: str, artifact_sha256: str,
+) -> float:
+    """Return the temperature of a verified calibration file.
+
+    The file must hash to ``calibration["artifact_sha256"]`` and belong to this
+    model and artifact. Only temperature scaling is supported.
+    """
+    method = calibration.get("method")
+    if method not in CALIBRATION_METHODS:
+        raise ContractError(f"Método de calibración no soportado: {method}")
+    try:
+        content = Path(path).read_bytes()
+    except (OSError, TypeError) as exc:
+        raise ContractError(f"Falta el archivo de calibración: {path}") from exc
+    if hashlib.sha256(content).hexdigest() != calibration.get("artifact_sha256"):
+        raise ContractError("El archivo de calibración fue modificado (hash distinto)")
+    try:
+        config = json.loads(content)
+    except ValueError as exc:
+        raise ContractError("El archivo de calibración no es JSON válido") from exc
+    if not isinstance(config, Mapping) or config.get("method") != method \
+            or config.get("split_role") != "validation_calibration":
+        raise ContractError("El archivo de calibración no coincide con la decisión")
+    if config.get("model_version") != model_version \
+            or config.get("artifact_sha256") != artifact_sha256:
+        raise ContractError("La calibración es de otro modelo o artefacto")
+    return check_temperature(config.get("temperature"))
+
+
+def check_temperature(value: object) -> float:
+    try:
+        valid = not isinstance(value, bool) and isinstance(value, Real) \
+            and math.isfinite(value) and value > 0
+    except OverflowError:
+        valid = False
+    if not valid:
+        raise ContractError("La temperatura de calibración debe ser un número finito mayor que 0")
+    return float(value)
 
 
 # --- Routing and human confirmation ---------------------------------------
@@ -252,6 +303,8 @@ def route_message(
     message = validate_message(text)
     if getattr(predictor, "model_version", None) != decision.model_version:
         raise ContractError("El predictor cargado es de otro modelo que la decisión")
+    if getattr(predictor, "calibration_sha256", None) != decision.calibration_sha256:
+        raise ContractError("La calibración aplicada por el predictor no coincide con la decisión")
     outputs = predictor.predict([message])
     if not isinstance(outputs, (list, tuple)) or len(outputs) != 1:
         raise ContractError("El predictor debe devolver exactamente una predicción por texto")
