@@ -1,0 +1,28 @@
+{
+  "model_version": "baseline-tfidf",
+  "device": "cpu",
+  "batch_size": 1,
+  "warmup_requests": 10,
+  "n_requests": 200,
+  "startup_ms": 10604.078399999707,
+  "latency_ms": {
+    "p50": 7.643750001079752,
+    "p95": 11.008344998481325,
+    "mean": 8.027099500195618,
+    "min": 5.974899999273475,
+    "max": 30.925299997761613
+  },
+  "throughput_rps": 124.57799980872672,
+  "clock": "time.perf_counter (monotónico)",
+  "measured_at_utc": "2026-11-13T21:55:14+00:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26300-SP0",
+    "python": "3.13.2",
+    "machine": "AMD64",
+    "processor": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
+    "cpu_count": 12,
+    "device": "cpu",
+    "omp_num_threads": 2,
+    "mkl_num_threads": 2
+  }
+}

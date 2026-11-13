@@ -1,0 +1,12 @@
+{
+  "artifact_sha256": "8947628a1593c81776ca81236262d5edf32e4399324d1326c2a35c77f416606a",
+  "data_manifest_sha256": "4ac939a13d104122530b98542b14e64b15678a46cec057d1d6f35fafb3c2270b",
+  "fitted": true,
+  "method": "temperature",
+  "model_version": "baseline-tfidf",
+  "n_examples": 498,
+  "nll_after": 0.4724756088641223,
+  "nll_before": 0.8667564015644633,
+  "split_role": "validation_calibration",
+  "temperature": 0.5026280957882447
+}

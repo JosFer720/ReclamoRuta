@@ -1,0 +1,25 @@
+{
+  "model_version": "distilbert-v2",
+  "real_weights": true,
+  "offline": true,
+  "new_inputs_not_in_train": 3,
+  "classification_confirmation_correction_blank_input": "passed",
+  "weights_unchanged": true,
+  "synthetic_case_results": [
+    {
+      "intent": "direct_debit_payment_not_recognised",
+      "score": 0.605164766711889,
+      "needs_review": true
+    },
+    {
+      "intent": "lost_or_stolen_card",
+      "score": 0.4577097354898179,
+      "needs_review": true
+    },
+    {
+      "intent": "card_not_working",
+      "score": 0.1892140216778431,
+      "needs_review": true
+    }
+  ]
+}

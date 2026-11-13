@@ -8,3 +8,5 @@ src/reclamoruta/*.py -text whitespace=blank-at-eol,blank-at-eof,space-before-tab
 scripts/*.py -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 configs/*.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 reports/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+# SVG generados por Matplotlib: su formato incluye espacios en los trazos.
+reports/*.svg -whitespace

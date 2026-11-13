@@ -1,0 +1,29 @@
+{
+  "model_version": "distilbert-v2",
+  "device": "cpu",
+  "batch_size": 1,
+  "warmup_requests": 10,
+  "n_requests": 200,
+  "startup_ms": 256.1390000009851,
+  "latency_ms": {
+    "p50": 20.536099998935242,
+    "p95": 29.963089998818756,
+    "mean": 21.559349999806727,
+    "min": 15.808300002390752,
+    "max": 40.67690000010771
+  },
+  "throughput_rps": 46.383587631768336,
+  "clock": "time.perf_counter (monotónico)",
+  "measured_at_utc": "2026-11-13T21:55:30+00:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26300-SP0",
+    "python": "3.13.2",
+    "machine": "AMD64",
+    "processor": "AMD64 Family 25 Model 97 Stepping 2, AuthenticAMD",
+    "cpu_count": 12,
+    "device": "cpu",
+    "torch": "2.14.0+cu126",
+    "omp_num_threads": 2,
+    "mkl_num_threads": 2
+  }
+}

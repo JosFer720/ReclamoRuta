@@ -1,0 +1,12 @@
+{
+  "artifact_sha256": "56b7d3565d69a7f30d51a4b1a822bce50a81c3b3770be6061b0be68242c2c910",
+  "data_manifest_sha256": "4ac939a13d104122530b98542b14e64b15678a46cec057d1d6f35fafb3c2270b",
+  "fitted": true,
+  "method": "temperature",
+  "model_version": "distilbert-v2",
+  "n_examples": 498,
+  "nll_after": 0.35332021875807607,
+  "nll_before": 0.375193056548655,
+  "split_role": "validation_calibration",
+  "temperature": 1.2236539841692393
+}

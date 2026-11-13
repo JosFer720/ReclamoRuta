@@ -8,7 +8,7 @@ Aplicación propuesta para clasificar consultas bancarias en inglés, sugerir un
 
 Al 23 de octubre de 2026 se descargaron y auditaron los CSV oficiales de BANKING77: 10,003 filas de entrenamiento y 3,080 de prueba, con 77 categorías. El proyecto ya genera limpieza, particiones, catálogo, EDA y manifiesto reproducibles. Los CSV procesados están en `data/processed/banking77/`, ignorados por Git; los reportes públicos pequeños están en `reports/`.
 
-Una prueba exploratoria con TF-IDF y regresión logística obtuvo 87.21 % de accuracy y 87.14 % de macro-F1 en validación. No son resultados de deep learning ni de prueba final. Todavía no hay entrenamiento DL, aplicación desplegada ni ahorro económico medido.
+Al 13 de noviembre de 2026, los tres modelos entrenados están disponibles mediante Git LFS y sus métricas se reprodujeron en CPU: accuracy de 87.15 % para el clásico, 87.65 % para V1 y 92.07 % para V2 sobre las 996 filas de `validation_model.csv`. Son métricas de validación, no de prueba final. La interfaz usa pesos reales y el análisis económico presenta valores estimados. La demo funciona localmente.
 
 ## Instalación y ejecución
 
@@ -64,7 +64,7 @@ La aplicación debe usar `validate_value_config` y `validate_decision` antes de 
 - `benchmark.py`: `run_benchmark(...)` y CLI. Separa el arranque de la inferencia, hace calentamiento, usa batch 1 y reporta p50/p95 y throughput con reloj monotónico, junto con la identificación del equipo y del modelo. No acepta splits de test, no sobrescribe resultados y no guarda textos.
 - `study.py`: estudio humano de tiempos, condición manual frente a asistida. Usa IDs anónimos `P-xxxxxxxx`, no guarda el texto salvo con `store_text=True`, exporta a un CSV nuevo neutralizando fórmulas, y `summarize` produce `t_manual`, `t_aceptar`, `t_corregir` y `t_revision` para `value.py`.
 
-En ese resumen, `t_corregir` es tiempo **adicional**, estimado como mediana de los casos corregidos menos mediana de los aceptados sin cambios. El total observado de los casos corregidos se conserva por separado. Si falta alguno de esos grupos o la diferencia es negativa, la estimación queda como `None` con un diagnóstico; no se inventa un cero. Es una diferencia de medianas entre grupos, no una medición separada de la fase de corrección ni una reconstrucción exacta del tiempo total de cualquier población.
+En ese resumen, `t_corregir` es tiempo **adicional**, estimado como mediana de los casos corregidos menos mediana de los aceptados sin cambios. El tiempo total registrado de los casos corregidos se conserva por separado. Si falta alguno de esos grupos o la diferencia es negativa, la estimación queda como `None` con un diagnóstico; no se inventa un cero. Es una diferencia de medianas entre grupos, no una medición separada de la fase de corrección ni una reconstrucción exacta del tiempo total de cualquier población.
 
 **Contrato para el predictor:** `reclamoruta.predictor.Predictor.load(artifact_dir, device="cpu")` devuelve un objeto con el atributo `model_version`, el método `predict(texts) -> list[contracts.Prediction]` (una predicción por texto, en el mismo orden) y, de forma opcional, `categories`. El artefacto debe incluir un `manifest.json` con los hashes de todos sus archivos, y `Predictor.load` debe verificarlos. El `artifact_sha256` de `configs/decision.json` es el SHA-256 de ese `manifest.json` (`contracts.artifact_digest`).
 
@@ -91,7 +91,37 @@ Otras variables: `RECLAMORUTA_DECISION`, `RECLAMORUTA_ROUTES`, `RECLAMORUTA_CATA
  "model_version": "distilbert-v2", "artifact_sha256": "<SHA-256 del manifest.json del modelo>"}
 ```
 
-La temperatura se ajusta solo con `validation_calibration.csv`; este repositorio todavía no incluye el código que la ajusta ni un archivo de calibración real.
+La temperatura se ajusta solo con `validation_calibration.csv`. El módulo `calibration.py` verifica los hashes de datos y modelo, minimiza la pérdida logarítmica con una temperatura entre 0.05 y 20 y escribe un archivo nuevo sin modificar los pesos:
+
+```powershell
+python -m reclamoruta.calibration --artifact artifacts/distilbert-v2 --data data/processed/banking77 --out data/cache/calibration-v2.json
+```
+
+El tokenizador puede haber sido guardado con metadatos de BERT por otra versión de Transformers. En entrenamiento e inferencia se desactiva explícitamente `token_type_ids`, que DistilBERT no acepta; no se modifican los artefactos ni sus hashes.
+
+### Comparación y demo con escenario estimado
+
+`configs/value_scenario.json` contiene el escenario estimado usado para comparar las versiones. `status: validated` indica estructura y unidades revisadas; todos sus parámetros conservan `estimated: true`. La guía para medir los tiempos está en `reports/GUIA_MEDICION_TIEMPOS.md`.
+
+`finalize.py` separa dos pasos. `prepare` ajusta la temperatura con calibración, elige el umbral por valor en la validación de umbral y congela hashes del código, datos, rutas, modelos y decisiones. `evaluate` comprueba ese congelamiento antes de leer test, calcula métricas y valor con decisiones fijas, sensibilidad e intervalos con 1,000 remuestreos pareados por grupo. No guarda los mensajes. Los intervalos económicos solo reflejan variación de la muestra bajo los costos supuestos.
+
+```powershell
+python -m reclamoruta.finalize --stage prepare --data data/processed/banking77 --artifacts artifacts/baseline artifacts/distilbert-v1 artifacts/distilbert-v2 --value-config configs/value_scenario.json --routes configs/routes.json --out reports/evaluation_scenario_v1 --device cpu
+python -m reclamoruta.finalize --stage evaluate --data data/processed/banking77 --artifacts artifacts/baseline artifacts/distilbert-v1 artifacts/distilbert-v2 --value-config configs/value_scenario.json --routes configs/routes.json --out reports/evaluation_scenario_v1 --device cpu --bootstrap 1000
+```
+
+Los resultados de esa ejecución están incluidos en `reports/evaluation_scenario_v1/`. Los comandos rechazan sobrescribirlos: para reproducir, usar otro directorio de salida nuevo en ambos pasos. Si cambian archivos de código o supuestos, se necesita otro congelamiento; no editar los hashes para forzar una comparación. Después de consultar test, cualquier ajuste posterior debe declararse y no tratarse como una nueva evaluación independiente.
+
+Para ejecutar la demo con los pesos reales y la decisión del escenario:
+
+```powershell
+$env:RECLAMORUTA_ARTIFACT_DIR = 'artifacts/distilbert-v2'
+$env:RECLAMORUTA_DECISION = 'reports/evaluation_scenario_v1/distilbert-v2/decision.json'
+$env:RECLAMORUTA_CALIBRATION = 'reports/evaluation_scenario_v1/distilbert-v2/calibration.json'
+python -m streamlit run src/reclamoruta/app.py
+```
+
+La decisión del escenario exige revisión por debajo de 0.85. La plantilla principal `configs/decision.json` se mantiene pendiente para impedir confundir este ejemplo con un umbral respaldado por un estudio real. La demo requiere revisión humana y consultas en inglés; no reconoce de forma fiable todos los mensajes fuera de dominio.
 
 Contenedor: `docker build -t reclamoruta .` y luego `docker run -p 8501:8501 -v ${PWD}/artifacts/distilbert-v2:/app/artifacts:ro -v ${PWD}/configs/decision.json:/app/configs/decision.json:ro reclamoruta`. Con una decisión calibrada, montar también `-v ${PWD}/configs/calibration.json:/app/configs/calibration.json:ro`. Los pesos se montan en modo de solo lectura y no se copian a la imagen. El contenedor corre sin root, en modo offline para Hugging Face y sin mostrar trazas al usuario (`.streamlit/config.toml`). En el despliegue público, HTTPS y los límites de uso los pone la plataforma o un proxy inverso; no se agrega autenticación casera.
 
@@ -115,7 +145,7 @@ python -m reclamoruta.train --config configs/train_v1.json --data data/processed
 python -m reclamoruta.train --config configs/train_v2.json --data data/processed/banking77 --out artifacts/distilbert-v2
 ```
 
-Las pruebas usan un DistilBERT diminuto aleatorio y no descargan nada; no son resultados. Las cifras de validación de los entrenamientos reales están en `reports/ENTRENAMIENTO.md`; la evaluación en test sigue pendiente.
+Las pruebas usan un DistilBERT diminuto aleatorio y no descargan nada; no son resultados. Las cifras de validación de los entrenamientos reales están en `reports/ENTRENAMIENTO.md`. La evaluación final congelada está en `reports/VERIFICACION_REAL.md`: V2 obtuvo 91.98 % de accuracy en el test oficial de 3,080 consultas. Sus resultados económicos son escenarios estimados, con costos excluidos explícitos.
 
 ### Pesos entrenados (Git LFS)
 
@@ -129,6 +159,14 @@ git clone https://github.com/JosFer720/ReclamoRuta.git
 En un clon anterior, o si `model.safetensors` pesa unos pocos bytes (es solo el puntero de LFS), ejecutar `git lfs pull`. Para comprobar la descarga: `python -c "from reclamoruta.predictor import Predictor; print(Predictor.load('artifacts/distilbert-v2').model_version)"`. `Predictor.load` verifica cada archivo contra su `manifest.json`; los hashes de cada manifiesto están en `reports/ENTRENAMIENTO.md`.
 
 `.gitattributes` guarda `artifacts/` byte a byte, sin convertir saltos de línea, porque los hashes dependen de los bytes exactos. Solo se versionan estas tres carpetas: las corridas intermedias y cualquier modelo nuevo quedan fuera salvo acuerdo del equipo. Cada descarga consume la cuota de LFS de la cuenta dueña del repositorio.
+
+El pickle clásico se guardó con scikit-learn 1.9.1; para reproducir su carga usar esa misma versión (`python -m pip install scikit-learn==1.9.1`). No cargar pickles enviados por fuentes desconocidas: un hash verifica integridad, pero no vuelve confiable un archivo y su manifiesto de origen desconocido.
+
+## Análisis complementario
+
+`reports/ANALISIS_ERRORES.md` explica las categorías más difíciles, confusiones y diferencias por longitud y rasgos de redacción. Sus métricas se reproducen con `scripts/analyze_errors.py` y los datos agregados están en `reports/ANALISIS_ERRORES.json`. El análisis conserva los modelos y umbrales fijados.
+
+`reports/ANALISIS_ECONOMICO.md` compara detección humana del 50 %, 80 % y 100 %, incorpora energía y capital del equipo, y separa el primer lote de los lotes posteriores. `scripts/analyze_economics.py` genera el JSON correspondiente a partir de conteos fijos, benchmarks y parámetros de `configs/compute_costs.json`. Incluye nueve cruces de capital y volumen por modelo y tasa de detección. Los dos reportes contienen sus comandos de reproducción y las fuentes de los parámetros.
 
 ## Colaboración
 
@@ -149,5 +187,5 @@ Guardar los cuatro archivos en `data/raw/banking77/`, ignorados por Git. La revi
 
 Solo se plantea soporte en inglés. Las rutas serán un mapa diseñado por el grupo; no son departamentos reales etiquetados por el dataset. Los tiempos, costos y demanda comercial deben medirse o declararse como supuestos.
 
-La interfaz y los contratos están implementados y probados con dobles de prueba; falta comprobar la integración con el predictor y los pesos reales en esta instalación. Repositorio configurado como remoto `origin`:
+La comprobación de los pesos reales, la latencia y los límites de la evaluación se documentan en `reports/VERIFICACION_REAL.md`. Los tiempos del escenario son supuestos hasta realizar el estudio humano. Repositorio configurado como remoto `origin`:
 https://github.com/JosFer720/ReclamoRuta.git
