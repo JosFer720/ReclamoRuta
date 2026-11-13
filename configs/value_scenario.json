@@ -1,0 +1,29 @@
+{
+  "status": "validated",
+  "assumptions_version": "academic-scenario-v1",
+  "description": "Escenario estimado para comparar versiones. Validated indica que se revisaron la estructura y las unidades de los parámetros.",
+  "units": {"time": "seconds", "currency": "GTQ", "cost_scope": "batch"},
+  "scope": "Los costos fijos e inferencia se aplican al lote evaluado y se reporta su tamaño; no se proyectan como ingresos mensuales. Se excluyen entrenamiento, compra del equipo, energía y despliegue; cero significa costo excluido de este escenario académico local, no servicio gratuito.",
+  "assumptions": {
+    "t_manual": 30,
+    "t_aceptar": 5,
+    "t_corregir": 20,
+    "t_revision": 35,
+    "costo_hora": 40,
+    "q_detectado": 0.8,
+    "costo_error_ruta_no_detectado": 25,
+    "costo_inferencia": 0,
+    "costo_operacion": 0
+  },
+  "evidence": {
+    "t_manual": {"source": "Supuesto didáctico: 30 segundos para clasificar manualmente una consulta corta. Sustituir por piloto humano.", "estimated": true},
+    "t_aceptar": {"source": "Supuesto didáctico: 5 segundos para revisar y aceptar una sugerencia. Sustituir por piloto humano.", "estimated": true},
+    "t_corregir": {"source": "Supuesto didáctico: 20 segundos ADICIONALES para corregir una sugerencia incorrecta; no es el tiempo total.", "estimated": true},
+    "t_revision": {"source": "Supuesto didáctico: 35 segundos de revisión completa cuando la puntuación no alcanza el umbral.", "estimated": true},
+    "costo_hora": {"source": "Costo estimado de Q40 por hora de trabajo.", "estimated": true},
+    "q_detectado": {"source": "Detección estimada del 80 % de las sugerencias erróneas aceptadas.", "estimated": true},
+    "costo_error_ruta_no_detectado": {"source": "Penalización estimada de Q25 por ruta errónea no detectada.", "estimated": true},
+    "costo_inferencia": {"source": "Excluido del escenario académico local: no se factura por consulta. No incluye energía ni amortización del equipo.", "estimated": true},
+    "costo_operacion": {"source": "Excluido del escenario académico local: todavía no hay despliegue público ni costo operativo medido.", "estimated": true}
+  }
+}

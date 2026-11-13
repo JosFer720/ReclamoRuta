@@ -1,0 +1,42 @@
+{
+  "version": "compute-costs-v1",
+  "currency": "GTQ",
+  "electricity_gtq_kwh": 1.51,
+  "cpu_nominal_watts": 65,
+  "gpu_nominal_watts": 300,
+  "inference_host_other_watts": 0,
+  "training_host_other_watts": 0,
+  "training_runs": 1,
+  "inference_capital_gtq": 10000,
+  "training_capital_gtq": 10000,
+  "lifetime_months": 36,
+  "training_hours_per_month": 160,
+  "messages_per_month": 10000,
+  "non_compute_monthly_gtq": 0,
+  "calculation_basis": {
+    "energy": "Energía equivalente a potencia nominal de ficha técnica durante el tiempo de ejecución. TDP y TGP son referencias de diseño de componentes; la energía del sistema completo requiere medición eléctrica.",
+    "training_gpu_scope": "Para los modelos DL se incluye la GPU de entrenamiento. La potencia adicional del resto del equipo se controla con training_host_other_watts.",
+    "capital": "Comparación para equipos de Q10000, distribuidos en 36 meses. Se consideran 160 horas mensuales de uso del equipo de entrenamiento y 10000 consultas mensuales en el equipo de inferencia. Estos valores definen el cálculo; no son precios de compra registrados.",
+    "deployment": "Ejecución local. El parámetro non_compute_monthly_gtq permite agregar hosting, almacenamiento u otros cargos mensuales.",
+    "training": "El primer lote carga una vez la corrida seleccionada. Los lotes posteriores reutilizan el modelo y no vuelven a cargar ese entrenamiento.",
+    "inference": "Tiempo medio batch 1 medido en CPU, multiplicado por el tamaño del lote. Arranque y calentamiento se mantienen separados."
+  },
+  "sources": {
+    "electricity": {
+      "provider": "CNEE, EEGSA, tarifa no social BTS",
+      "valid_from": "2026-11-01",
+      "valid_until": "2027-01-31",
+      "url": "https://cnee.gob.gt/wp-content/uploads/2026/10/Comunicado-CNEE-Ajustes-Tarifarios-1-noviembre-2026-al-31-enero-2027-1.pdf"
+    },
+    "cpu": {
+      "model": "AMD Ryzen 5 7600",
+      "specification": "Default TDP: 65 W",
+      "url": "https://www.amd.com/en/products/processors/desktops/ryzen/7000-series/amd-ryzen-5-7600.html"
+    },
+    "gpu": {
+      "model": "NVIDIA GeForce RTX 5070 Ti",
+      "specification": "Total Graphics Power: 300 W",
+      "url": "https://www.nvidia.com/en-us/geforce/graphics-cards/50-series/rtx-5070-family/"
+    }
+  }
+}
