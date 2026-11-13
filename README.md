@@ -76,6 +76,26 @@ Otras variables: `RECLAMORUTA_DECISION`, `RECLAMORUTA_ROUTES`, `RECLAMORUTA_CATA
 
 Contenedor: `docker build -t reclamoruta .` y luego `docker run -p 8501:8501 -v ${PWD}/artifacts/distilbert-v2:/app/artifacts:ro -v ${PWD}/configs/decision.json:/app/configs/decision.json:ro reclamoruta`. Los pesos se montan en modo de solo lectura y no se copian a la imagen. El contenedor corre sin root, en modo offline para Hugging Face y sin mostrar trazas al usuario (`.streamlit/config.toml`). En el despliegue público, HTTPS y los límites de uso los pone la plataforma o un proxy inverso; no se agrega autenticación casera.
 
+### Entrenamiento y predictor (equipo, FB1/FB2)
+
+- `baseline.py`: TF-IDF (1–2-gramas, `min_df=2`, 30,000 atributos) + regresión logística One-vs-Rest.
+- `train.py`: DistilBERT con `configs/train_v1.json` (encoder congelado, solo se entrena la cabeza) o `configs/train_v2.json` (fine-tuning completo). Usa AdamW, cross-entropy, semilla 42, máximo 128 tokens, microbatch 8 con acumulación 2, calentamiento y decaimiento lineal de la tasa de aprendizaje y early stopping. Resultados y cambios respecto al configuration: `reports/ENTRENAMIENTO.md`. La época se elige por macro-F1 en `validation_model.csv`; ningún módulo de entrenamiento lee el test.
+- `predictor.py`: `Predictor.load(artifact_dir, device="cpu")` sirve para los tres modelos. Rechaza el artefacto si falta, sobra o cambió algún archivo respecto a `manifest.json`.
+
+Cada artefacto es una carpeta plana con el modelo, `label_to_id.json`, `metrics.json` (curvas por época, tiempo, memoria y truncamiento) y `manifest.json` con el SHA-256 de cada archivo. El baseline se guarda como `model.pkl`: cargar solo artefactos propios, porque pickle ejecuta código. Un directorio de salida existente se rechaza; nunca se sobrescribe un artefacto.
+
+PyTorch con CUDA se instala desde su índice oficial (verificado: `2.11.0+cu128`, Python 3.12, RTX 5070 Ti):
+
+```powershell
+python -m pip install torch --index-url https://download.pytorch.org/whl/cu128
+python -m pip install -e ".[dev,model]"
+python -m reclamoruta.baseline --data data/processed/banking77 --out artifacts/baseline
+python -m reclamoruta.train --config configs/train_v1.json --data data/processed/banking77 --out artifacts/distilbert-v1
+python -m reclamoruta.train --config configs/train_v2.json --data data/processed/banking77 --out artifacts/distilbert-v2
+```
+
+Las pruebas usan un DistilBERT diminuto aleatorio y no descargan nada; no son resultados. Las cifras de validación de los entrenamientos reales están en `reports/ENTRENAMIENTO.md`; la evaluación en test sigue pendiente.
+
 ## Colaboración
 
 Todo se trabaja y se integra sobre `main`. Cada persona usa su propia copia del repositorio, sincroniza antes de empezar y antes de publicar, y coordina cambios en archivos compartidos. No sobrescribir cambios de otro integrante ni forzar un push.
