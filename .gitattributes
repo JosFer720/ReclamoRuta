@@ -1,0 +1,5 @@
+# Artefactos: bytes exactos, sin conversion de saltos de linea (los hashes del manifiesto dependen de ellos)
+artifacts/** -text
+# Pesos en Git LFS
+artifacts/**/*.safetensors filter=lfs diff=lfs merge=lfs -text
+artifacts/**/*.pkl filter=lfs diff=lfs merge=lfs -text

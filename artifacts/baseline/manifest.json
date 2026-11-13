@@ -1,0 +1,11 @@
+{
+  "data_manifest_sha256": "4ac939a13d104122530b98542b14e64b15678a46cec057d1d6f35fafb3c2270b",
+  "files": {
+    "label_to_id.json": "2525b179cd9293d251f347d564baad46acfc91acb99ece1277d8f57da5d7c6a6",
+    "metrics.json": "ab8773259a4a941962dc162a9edf604cdf1785c31121f4783bbed5d317affff7",
+    "model.pkl": "34ead5d2a47249a77a86201e5c04ae8ad8ef1dcefab1fd5a2b2969d333c87e5b"
+  },
+  "kind": "baseline",
+  "model_version": "baseline-tfidf",
+  "schema_version": 1
+}

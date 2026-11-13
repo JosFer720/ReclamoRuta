@@ -1,0 +1,118 @@
+{
+  "best": {
+    "epoch": 7,
+    "seconds": 160.18570829999953,
+    "train_accuracy": 0.9978640532730243,
+    "train_loss": 0.018600217517798143,
+    "val_accuracy": 0.9206827309236948,
+    "val_loss": 0.34139117012062226,
+    "val_macro_f1": 0.9197828446486617
+  },
+  "curves": [
+    {
+      "epoch": 1,
+      "seconds": 23.764059500001167,
+      "train_accuracy": 0.3384847342630984,
+      "train_loss": 3.2905437361132126,
+      "val_accuracy": 0.75,
+      "val_loss": 1.2427397501995285,
+      "val_macro_f1": 0.6865665437765849
+    },
+    {
+      "epoch": 2,
+      "seconds": 45.076156200000696,
+      "train_accuracy": 0.8540017590149517,
+      "train_loss": 0.6878672657998561,
+      "val_accuracy": 0.8885542168674698,
+      "val_loss": 0.4113440307747408,
+      "val_macro_f1": 0.8886963025393207
+    },
+    {
+      "epoch": 3,
+      "seconds": 68.12121190000107,
+      "train_accuracy": 0.944716672948863,
+      "train_loss": 0.2390554828258267,
+      "val_accuracy": 0.891566265060241,
+      "val_loss": 0.35921650813765316,
+      "val_macro_f1": 0.8865506307759373
+    },
+    {
+      "epoch": 4,
+      "seconds": 92.0237476000002,
+      "train_accuracy": 0.9771328056288479,
+      "train_loss": 0.1093424752425767,
+      "val_accuracy": 0.9196787148594378,
+      "val_loss": 0.32320655684873284,
+      "val_macro_f1": 0.9193301977580003
+    },
+    {
+      "epoch": 5,
+      "seconds": 114.81840860000011,
+      "train_accuracy": 0.9885664028144239,
+      "train_loss": 0.05746769493314463,
+      "val_accuracy": 0.9136546184738956,
+      "val_loss": 0.3224860490206255,
+      "val_macro_f1": 0.9119135651176745
+    },
+    {
+      "epoch": 6,
+      "seconds": 138.58888520000073,
+      "train_accuracy": 0.9939690915944214,
+      "train_loss": 0.03313277053199395,
+      "val_accuracy": 0.9136546184738956,
+      "val_loss": 0.3436442103730627,
+      "val_macro_f1": 0.9116573401721102
+    },
+    {
+      "epoch": 7,
+      "seconds": 160.18570829999953,
+      "train_accuracy": 0.9978640532730243,
+      "train_loss": 0.018600217517798143,
+      "val_accuracy": 0.9206827309236948,
+      "val_loss": 0.34139117012062226,
+      "val_macro_f1": 0.9197828446486617
+    },
+    {
+      "epoch": 8,
+      "seconds": 182.77316620000056,
+      "train_accuracy": 0.9992461364493027,
+      "train_loss": 0.011034162881823809,
+      "val_accuracy": 0.9156626506024096,
+      "val_loss": 0.3425345228139655,
+      "val_macro_f1": 0.9139862781251615
+    },
+    {
+      "epoch": 9,
+      "seconds": 204.8496226999996,
+      "train_accuracy": 0.9993717803744189,
+      "train_loss": 0.00840533580813561,
+      "val_accuracy": 0.9206827309236948,
+      "val_loss": 0.34084664231323336,
+      "val_macro_f1": 0.9187031386885253
+    },
+    {
+      "epoch": 10,
+      "seconds": 227.16527979999955,
+      "train_accuracy": 0.9997487121497676,
+      "train_loss": 0.006821877192209726,
+      "val_accuracy": 0.9176706827309237,
+      "val_loss": 0.3437265938065617,
+      "val_macro_f1": 0.9165295056098636
+    }
+  ],
+  "device": "NVIDIA GeForce RTX 5070 Ti",
+  "gpu_peak_mb": 1309.95947265625,
+  "max_tokens": 98,
+  "model_version": "distilbert-v2",
+  "n_train": 7959,
+  "n_validation_model": 996,
+  "precision": "fp32",
+  "selection": "max val_macro_f1 on validation_model",
+  "train_seconds": 227.1692948,
+  "trainable_parameters": 67012685,
+  "truncated_texts": 0,
+  "versions": {
+    "torch": "2.11.0+cu128",
+    "transformers": "5.23.0"
+  }
+}

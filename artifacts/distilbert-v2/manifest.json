@@ -1,0 +1,15 @@
+{
+  "data_manifest_sha256": "4ac939a13d104122530b98542b14e64b15678a46cec057d1d6f35fafb3c2270b",
+  "files": {
+    "config.json": "b1a7676bccd98295c5190816c60439a1601d52dc4444776a8807a3ad75f915d7",
+    "label_to_id.json": "2525b179cd9293d251f347d564baad46acfc91acb99ece1277d8f57da5d7c6a6",
+    "metrics.json": "e78ac7a88ffc8c54e089a3675990e34c7494cf304f9301b01c63397c593f5a4a",
+    "model.safetensors": "417b98d00e57f95ea79c0311e18e50f70d9ce989fb88debe9ad2bf9051384967",
+    "tokenizer.json": "2fc687b11de0bc1b3d8348f92e3b49ef1089a621506c7661fbf3248fcd54947e",
+    "tokenizer_config.json": "71cd48543bec670f50e0c9c3556df16b1f58ea720ead6a1b4675f08870c60b17",
+    "train_config.json": "e999e1e7a3d703b3a97578f1ff82d77fc6b9e7a9851bc3bd27a3493dde2572c9"
+  },
+  "kind": "distilbert",
+  "model_version": "distilbert-v2",
+  "schema_version": 1
+}

@@ -1,0 +1,17 @@
+{
+  "fit_seconds": 1.0581239000002824,
+  "model_version": "baseline-tfidf",
+  "n_train": 7959,
+  "n_validation_model": 996,
+  "train": {
+    "accuracy": 0.9868073878627969,
+    "macro_f1": 0.9862145701146523
+  },
+  "validation_model": {
+    "accuracy": 0.8714859437751004,
+    "macro_f1": 0.8641382166357727
+  },
+  "versions": {
+    "scikit-learn": "1.9.1"
+  }
+}

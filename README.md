@@ -117,6 +117,19 @@ python -m reclamoruta.train --config configs/train_v2.json --data data/processed
 
 Las pruebas usan un DistilBERT diminuto aleatorio y no descargan nada; no son resultados. Las cifras de validación de los entrenamientos reales están en `reports/ENTRENAMIENTO.md`; la evaluación en test sigue pendiente.
 
+### Pesos entrenados (Git LFS)
+
+Los tres modelos finales están en el repositorio con Git LFS: `artifacts/baseline` (5 MB), `artifacts/distilbert-v1` y `artifacts/distilbert-v2` (256 MB cada uno). Instalar Git LFS una vez antes de clonar:
+
+```powershell
+git lfs install
+git clone https://github.com/JosFer720/ReclamoRuta.git
+```
+
+En un clon anterior, o si `model.safetensors` pesa unos pocos bytes (es solo el puntero de LFS), ejecutar `git lfs pull`. Para comprobar la descarga: `python -c "from reclamoruta.predictor import Predictor; print(Predictor.load('artifacts/distilbert-v2').model_version)"`. `Predictor.load` verifica cada archivo contra su `manifest.json`; los hashes de cada manifiesto están en `reports/ENTRENAMIENTO.md`.
+
+`.gitattributes` guarda `artifacts/` byte a byte, sin convertir saltos de línea, porque los hashes dependen de los bytes exactos. Solo se versionan estas tres carpetas: las corridas intermedias y cualquier modelo nuevo quedan fuera salvo acuerdo del equipo. Cada descarga consume la cuota de LFS de la cuenta dueña del repositorio.
+
 ## Colaboración
 
 Todo se trabaja y se integra sobre `main`. Cada persona usa su propia copia del repositorio, sincroniza antes de empezar y antes de publicar, y coordina cambios en archivos compartidos. No sobrescribir cambios de otro integrante ni forzar un push.

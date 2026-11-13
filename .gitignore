@@ -23,11 +23,15 @@ Thumbs.db
 # Material de trabajo exclusivamente local
 /.local/
 
-# Datos, pesos y resultados voluminosos: compartir fuera de Git
+# Datos y resultados voluminosos: compartir fuera de Git
 data/raw/
 data/processed/
 data/cache/
-artifacts/
+# Solo los tres modelos finales se versionan, con Git LFS (.gitattributes)
+artifacts/*
+!artifacts/baseline/
+!artifacts/distilbert-v1/
+!artifacts/distilbert-v2/
 checkpoints/
 runs/
 uploads/
@@ -37,6 +41,8 @@ uploads/
 *.pt
 *.pth
 *.safetensors
+!artifacts/distilbert-v1/model.safetensors
+!artifacts/distilbert-v2/model.safetensors
 *.onnx
 *.zip
 *.7z
