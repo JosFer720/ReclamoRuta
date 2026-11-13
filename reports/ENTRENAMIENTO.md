@@ -1,8 +1,8 @@
 # Entrenamiento — baseline, DistilBERT V1 y V2
 
-Fecha: 13 de noviembre de 2026. Responsable: equipo (FB3–FB5 del configuration 2).
+Fecha: 13 de noviembre de 2026.
 
-Todas las cifras de este reporte son de `validation_model.csv` (996 filas). Ningún entrenamiento leyó el test ni las partes de calibración o umbral. No son resultados finales: la evaluación en test le corresponde a equipo después del congelamiento.
+Todas las cifras de este reporte son de `validation_model.csv` (996 filas). Ningún entrenamiento leyó el test ni las partes de calibración o umbral. No son resultados finales: la evaluación en test se realiza después del congelamiento.
 
 ## Resumen
 
@@ -14,7 +14,7 @@ Todas las cifras de este reporte son de `validation_model.csv` (996 filas). Ning
 
 - V2 supera al clásico por 4.9 puntos de accuracy y 5.6 de macro-F1.
 - V1 queda prácticamente empatado con el clásico: 0.5 puntos más de accuracy y 1.3 de macro-F1, con unas 270 veces más tiempo de entrenamiento.
-- Estas diferencias vienen de una sola semilla y 996 filas, sin intervalos de confianza. Una fila equivale a 0.1 puntos de accuracy. La incertidumbre la calcula equipo con bootstrap.
+- Estas diferencias vienen de una sola semilla y 996 filas, sin intervalos de confianza. Una fila equivale a 0.1 puntos de accuracy. La incertidumbre debe calcularse con bootstrap.
 
 ## Entorno
 
@@ -53,11 +53,11 @@ Común a V1 y V2: cross-entropy, AdamW (weight decay por defecto 0.01), dropout 
 - V1 y V2 parten de la misma revisión base, cada una con cabeza y optimizador nuevos.
 - Truncamiento: 0 textos. El texto más largo de train y validación tiene 98 tokens.
 
-## Cambios respecto al configuration
+## Cambios de configuración
 
-La primera ronda siguió la configuración inicial del configuration 2. Como V1 no convergió y V2 terminó en su última época permitida, se hizo una segunda ronda con tres cambios:
+La primera ronda usó la configuración inicial. Como V1 no convergió y V2 terminó en su última época permitida, se hizo una segunda ronda con tres cambios:
 
-| Parámetro | configuration (ronda 1) | Final (ronda 2) |
+| Parámetro | Inicial (ronda 1) | Final (ronda 2) |
 |---|---|---|
 | Tasa de aprendizaje | Constante | Calentamiento 10 % y decaimiento lineal |
 | Máximo de épocas | V1: 10, V2: 5 | V1: 40, V2: 10 |
@@ -121,7 +121,7 @@ La pérdida y la accuracy de train se miden durante la época, con dropout activ
 - **La elección entre las corridas de V2 es casi un empate.** Se eligió LR 5e-5 por la regla fijada (mayor macro-F1) y porque es reproducible con el código actual; la ganadora de la ronda 1 se entrenó con tasa constante, que el código ya no usa.
 - **V2 sobreajusta después de la época 5.** La pérdida de validación sube de 0.322 a 0.344 mientras la de train llega casi a cero y la accuracy de train a 1.000. El macro-F1 ya no mejora de forma clara.
 - **El clásico también sobreajusta**: 0.9868 de accuracy en train frente a 0.8715 en validación.
-- **Costo.** V2 tardó unas 200 veces más que el clásico en entrenar (227 s frente a 1.1 s), necesita GPU y su artefacto pesa unas 47 veces más. Si esa diferencia de calidad compensa el costo es parte del análisis de valor de equipo.
+- **Costo.** V2 tardó unas 200 veces más que el clásico en entrenar (227 s frente a 1.1 s), necesita GPU y su artefacto pesa unas 47 veces más. Si esa diferencia de calidad compensa el costo es parte del análisis de valor.
 - El diagnóstico exploratorio anterior del clásico (0.8721 de accuracy) usó la validación completa de 2,033 filas. La cifra de este reporte usa solo las 996 de selección de modelo, por eso no coinciden.
 
 ## Artefactos y carga en CPU
@@ -134,7 +134,7 @@ Cada artefacto se cargó con `Predictor.load(..., device="cpu")` y predijo las 9
 | `artifacts/distilbert-v1` | 3.68 s | 7.2 ms | `288180e594ffbfc01faa5faf75ff33012e950383c68e68e04948018a029c6319` |
 | `artifacts/distilbert-v2` | 0.36 s | 7.2 ms | `56b7d3565d69a7f30d51a4b1a822bce50a81c3b3770be6061b0be68242c2c910` |
 
-- El tiempo por texto es en lotes de 32 en la CPU de este equipo. No es la latencia de batch 1; esa la mide equipo con `benchmark.py`.
+- El tiempo por texto es en lotes de 32 en la CPU de este equipo. No es la latencia de batch 1; esa se mide con `benchmark.py`.
 - V1 se cargó primero en el mismo proceso, así que su tiempo probablemente incluye la importación inicial de PyTorch. No se midió por separado.
 - El SHA-256 de `manifest.json` es el `artifact_sha256` que va en `configs/decision.json`. El manifiesto lista el hash de cada archivo y `Predictor.load` los verifica.
 - El baseline se guarda con pickle. Cargar solo artefactos cuyo hash coincida con esta tabla.
@@ -146,7 +146,7 @@ Cada artefacto se cargó con `Predictor.load(..., device="cpu")` y predijo las 9
 
 ## Pendiente
 
-- Compartir los tres artefactos con equipo y equipo, y que confirmen el hash y la carga en sus computadoras.
-- Avisar al equipo de los cambios respecto al configuration (calendario, épocas y paciencia).
+- Compartir los tres artefactos con el equipo y confirmar el hash y la carga en otras computadoras.
+- Comunicar los cambios de configuración (calendario, épocas y paciencia).
 - Muestra de explicabilidad por oclusión de palabras.
 - Redacción de metodología para el informe.

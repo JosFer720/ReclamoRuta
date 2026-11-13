@@ -1,6 +1,6 @@
 """ReclamoRuta Streamlit app: suggest intent and route, always under human review.
 
-Run (after equipo's artifact and a validated decision exist)::
+Run (after a verified model artifact and a validated decision exist)::
 
     RECLAMORUTA_ARTIFACT_DIR=artifacts/distilbert-v2 streamlit run src/reclamoruta/app.py
 

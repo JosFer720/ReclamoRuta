@@ -108,10 +108,10 @@ def test_condition_assignment_is_balanced_and_deterministic():
 def make_trials():
     clock = Clock()
     sess = session(clock)
-    configuration = [("m1", "manual", None, "card_arrival", 10.0), ("m2", "manual", None, "top_up_failed", 12.0),
+    scenarios = [("m1", "manual", None, "card_arrival", 10.0), ("m2", "manual", None, "top_up_failed", 12.0),
             ("m3", "asistida", "card_arrival", "card_arrival", 4.0),
             ("m4", "asistida", "card_arrival", "compromised_card", 9.0)]
-    for message, condition, suggested, final, seconds in configuration:
+    for message, condition, suggested, final, seconds in scenarios:
         sess.start(message, condition, suggested_intent=suggested, model_version="v1" if suggested else None,
                    needs_review=False if suggested else None)
         clock.now += seconds
@@ -126,9 +126,73 @@ def test_summary_maps_times_to_value_parameters():
     assert summary["asistida"]["correction_rate"] == pytest.approx(0.5)
     assert summary["value_inputs"]["t_manual"] == pytest.approx(11.0)
     assert summary["value_inputs"]["t_aceptar"] == pytest.approx(4.0)
-    assert summary["value_inputs"]["t_corregir"] == pytest.approx(9.0)
+    assert summary["value_inputs"]["t_corregir"] == pytest.approx(5.0)
+    assert summary["asistida"]["corrected_total_median_s"] == pytest.approx(9.0)
     assert summary["value_inputs"]["t_revision"] is None  # no reviewed trials: never zero
     assert summary["estimated"] is True
+
+
+def assisted_trials(scenarios):
+    clock = Clock()
+    sess = session(clock)
+    for index, (seconds, corrected, reviewed) in enumerate(scenarios):
+        sess.start(f"m{index}", "asistida", suggested_intent="card_arrival",
+                   needs_review=reviewed, model_version="v1")
+        clock.now += seconds
+        sess.finish("compromised_card" if corrected else "card_arrival")
+    return sess.trials
+
+
+def test_summary_correction_is_additional_and_value_counts_each_duration_once():
+    from reclamoruta.value import compute_value
+
+    trials = assisted_trials([(4.0, False, False), (9.0, True, False), (5.0, True, True)])
+    summary = study().summarize(trials)
+    inputs = {**summary["value_inputs"], "t_manual": 10.0}
+    result = compute_value(
+        accepted_correct=1, accepted_wrong=1, accepted_wrong_route=1, reviewed=1,
+        assumptions={**inputs, "q_detectado": 1.0, "costo_hora": 0.0,
+                     "costo_error_ruta_no_detectado": 0.0,
+                     "costo_inferencia": 0.0, "costo_operacion": 0.0},
+    )
+    assert sum(trial.elapsed_s for trial in trials) == pytest.approx(18.0)
+    assert result["T_assist"] == pytest.approx(18.0)
+    assert summary["value_inputs"]["t_corregir"] == pytest.approx(5.0)
+    assert summary["correction_time_estimate"]["method"] == "difference_of_group_medians"
+    assert summary["correction_time_estimate"]["status"] == "estimated"
+
+
+@pytest.mark.parametrize("scenarios", [
+    [], [(4.0, False, False)], [(9.0, True, False)], [(5.0, True, True)],
+])
+def test_summary_correction_estimate_requires_both_nonreviewed_groups(scenarios):
+    summary = study().summarize(assisted_trials(scenarios))
+    assert summary["value_inputs"]["t_corregir"] is None
+    assert summary["correction_time_estimate"]["status"] == "missing_groups"
+    assert summary["correction_time_estimate"]["diagnostic"]
+
+
+def test_summary_negative_correction_estimate_is_unavailable_with_diagnostic():
+    summary = study().summarize(assisted_trials([(9.0, False, False), (4.0, True, False)]))
+    assert summary["value_inputs"]["t_corregir"] is None
+    assert summary["asistida"]["corrected_total_median_s"] == pytest.approx(4.0)
+    assert summary["correction_time_estimate"]["status"] == "negative_estimate"
+    assert "nonnegative" in summary["correction_time_estimate"]["diagnostic"]
+
+
+def test_summary_equal_group_medians_allow_zero_additional_correction():
+    summary = study().summarize(assisted_trials([(4.0, False, False), (4.0, True, False)]))
+    assert summary["value_inputs"]["t_corregir"] == pytest.approx(0.0)
+    assert summary["correction_time_estimate"]["status"] == "estimated"
+
+
+def test_summary_reviewed_corrections_only_contribute_to_review_time():
+    trials = assisted_trials([(4.0, False, False), (9.0, True, False), (50.0, True, True)])
+    summary = study().summarize(trials)
+    assert summary["value_inputs"]["t_aceptar"] == pytest.approx(4.0)
+    assert summary["value_inputs"]["t_corregir"] == pytest.approx(5.0)
+    assert summary["asistida"]["corrected_total_median_s"] == pytest.approx(9.0)
+    assert summary["value_inputs"]["t_revision"] == pytest.approx(50.0)
 
 
 def test_export_is_explicit_new_file_and_neutralises_formulas(tmp_path):

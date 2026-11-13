@@ -4,7 +4,7 @@ Fecha: 23 de octubre de 2026. Revisión asistida durante la implementación; no 
 
 ## Muestra examinada
 
-Fuente: `train.csv` oficial, revisión `57ec275d8078af65b7731c2a98be812d844a6d6b`, con SHA-256 documentado en el configuration de código. Se leyeron las primeras consultas de cada una de las 77 categorías y las 20 consultas más largas; unión de 97 filas originales distintas. IDs: `train.csv:<fila>` con fila de datos base 0. No se usaron mensajes del test para esta revisión.
+Fuente: `train.csv` oficial, revisión `57ec275d8078af65b7731c2a98be812d844a6d6b`, con SHA-256 documentado en `reports/BANKING77_MANIFEST.json`. Se leyeron las primeras consultas de cada una de las 77 categorías y las 20 consultas más largas; unión de 97 filas originales distintas. IDs: `train.csv:<fila>` con fila de datos base 0. No se usaron mensajes del test para esta revisión.
 
 La muestra es intencional, no aleatoria. Sirve para identificar riesgos y no para estimar una tasa de errores de etiqueta. No se reproducen los mensajes completos en este informe.
 

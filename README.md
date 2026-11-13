@@ -48,7 +48,7 @@ if (Test-Path -LiteralPath $testScratch) { throw 'El temporal debe ser nuevo' }
 
 La aplicación debe usar `validate_value_config` y `validate_decision` antes de consumir configuraciones, además de verificar hashes contra los archivos de modelo reales. Estos validadores comprueban estructura: no pueden certificar que un costo es verdadero o que un llamador no etiquetó mal un split. No publicar los CSV de mensajes ni usar el test para buscar parámetros. Los ejemplos sintéticos de pruebas no son métricas del producto.
 
-### Aplicación, contratos y medición (equipo, L1/L2)
+### Aplicación, contratos y medición
 
 - `contracts.py`: `Prediction` (inmutable y validado: `label`, `score` en [0, 1], `top3` descendente, `model_version`, `elapsed_ms`), `validate_message` (1–2,000 caracteres sin contar los espacios exteriores), `load_routes`/`validate_routes`, `artifact_digest`, `bind_decision`, `route_message` y `confirm`. `score >= umbral` → la sugerencia se puede aceptar; `score < umbral` → revisión obligatoria. La ruta sale de `configs/routes.json`, no del clasificador.
 - `configs/routes.json`: **propuesta** `rutas-v0.1` con 7 rutas que cubren las 77 intenciones. Es una decisión de diseño del grupo y queda pendiente de aprobación; no son departamentos reales.
@@ -56,13 +56,15 @@ La aplicación debe usar `validate_value_config` y `validate_decision` antes de 
 - `benchmark.py`: `run_benchmark(...)` y CLI. Separa el arranque de la inferencia, hace calentamiento, usa batch 1 y reporta p50/p95 y throughput con reloj monotónico, junto con la identificación del equipo y del modelo. No acepta splits de test, no sobrescribe resultados y no guarda textos.
 - `study.py`: estudio humano de tiempos, condición manual frente a asistida. Usa IDs anónimos `P-xxxxxxxx`, no guarda el texto salvo con `store_text=True`, exporta a un CSV nuevo neutralizando fórmulas, y `summarize` produce `t_manual`, `t_aceptar`, `t_corregir` y `t_revision` para `value.py`.
 
-**Contrato para el predictor (equipo):** `reclamoruta.predictor.Predictor.load(artifact_dir, device="cpu")` devuelve un objeto con el atributo `model_version`, el método `predict(texts) -> list[contracts.Prediction]` (una predicción por texto, en el mismo orden) y, de forma opcional, `categories`. El artefacto debe incluir un `manifest.json` con los hashes de todos sus archivos, y `Predictor.load` debe verificarlos. El `artifact_sha256` de `configs/decision.json` es el SHA-256 de ese `manifest.json` (`contracts.artifact_digest`).
+En ese resumen, `t_corregir` es tiempo **adicional**, estimado como mediana de los casos corregidos menos mediana de los aceptados sin cambios. El total observado de los casos corregidos se conserva por separado. Si falta alguno de esos grupos o la diferencia es negativa, la estimación queda como `None` con un diagnóstico; no se inventa un cero. Es una diferencia de medianas entre grupos, no una medición separada de la fase de corrección ni una reconstrucción exacta del tiempo total de cualquier población.
+
+**Contrato para el predictor:** `reclamoruta.predictor.Predictor.load(artifact_dir, device="cpu")` devuelve un objeto con el atributo `model_version`, el método `predict(texts) -> list[contracts.Prediction]` (una predicción por texto, en el mismo orden) y, de forma opcional, `categories`. El artefacto debe incluir un `manifest.json` con los hashes de todos sus archivos, y `Predictor.load` debe verificarlos. El `artifact_sha256` de `configs/decision.json` es el SHA-256 de ese `manifest.json` (`contracts.artifact_digest`).
 
 Instalación editable (alternativa a `requirements-dev.txt`):
 
 ```powershell
 python -m pip install -e ".[dev]"     # pruebas + Streamlit
-python -m pip install -e ".[app,model]"  # app con predictor; PyTorch GPU se fija en el configuration 2
+python -m pip install -e ".[app,model]"  # app con predictor; elegir PyTorch compatible con la GPU
 ```
 
 Ejecutar la app, con un artefacto real y la decisión ya validada:
@@ -76,10 +78,10 @@ Otras variables: `RECLAMORUTA_DECISION`, `RECLAMORUTA_ROUTES`, `RECLAMORUTA_CATA
 
 Contenedor: `docker build -t reclamoruta .` y luego `docker run -p 8501:8501 -v ${PWD}/artifacts/distilbert-v2:/app/artifacts:ro -v ${PWD}/configs/decision.json:/app/configs/decision.json:ro reclamoruta`. Los pesos se montan en modo de solo lectura y no se copian a la imagen. El contenedor corre sin root, en modo offline para Hugging Face y sin mostrar trazas al usuario (`.streamlit/config.toml`). En el despliegue público, HTTPS y los límites de uso los pone la plataforma o un proxy inverso; no se agrega autenticación casera.
 
-### Entrenamiento y predictor (equipo, FB1/FB2)
+### Entrenamiento y predictor
 
 - `baseline.py`: TF-IDF (1–2-gramas, `min_df=2`, 30,000 atributos) + regresión logística One-vs-Rest.
-- `train.py`: DistilBERT con `configs/train_v1.json` (encoder congelado, solo se entrena la cabeza) o `configs/train_v2.json` (fine-tuning completo). Usa AdamW, cross-entropy, semilla 42, máximo 128 tokens, microbatch 8 con acumulación 2, calentamiento y decaimiento lineal de la tasa de aprendizaje y early stopping. Resultados y cambios respecto al configuration: `reports/ENTRENAMIENTO.md`. La época se elige por macro-F1 en `validation_model.csv`; ningún módulo de entrenamiento lee el test.
+- `train.py`: DistilBERT con `configs/train_v1.json` (encoder congelado, solo se entrena la cabeza) o `configs/train_v2.json` (fine-tuning completo). Usa AdamW, cross-entropy, semilla 42, máximo 128 tokens, microbatch 8 con acumulación 2, calentamiento y decaimiento lineal de la tasa de aprendizaje y early stopping. Resultados y cambios de configuración: `reports/ENTRENAMIENTO.md`. La época se elige por macro-F1 en `validation_model.csv`; ningún módulo de entrenamiento lee el test.
 - `predictor.py`: `Predictor.load(artifact_dir, device="cpu")` sirve para los tres modelos. Rechaza el artefacto si falta, sobra o cambió algún archivo respecto a `manifest.json`.
 
 Cada artefacto es una carpeta plana con el modelo, `label_to_id.json`, `metrics.json` (curvas por época, tiempo, memoria y truncamiento) y `manifest.json` con el SHA-256 de cada archivo. El baseline se guarda como `model.pkl`: cargar solo artefactos propios, porque pickle ejecuta código. Un directorio de salida existente se rechaza; nunca se sobrescribe un artefacto.
@@ -115,5 +117,5 @@ Guardar los cuatro archivos en `data/raw/banking77/`, ignorados por Git. La revi
 
 Solo se plantea soporte en inglés. Las rutas serán un mapa diseñado por el grupo; no son departamentos reales etiquetados por el dataset. Los tiempos, costos y demanda comercial deben medirse o declararse como supuestos.
 
-La interfaz y los contratos están implementados y probados con dobles de prueba; falta integrarlos con el predictor y los pesos reales (configuration 2). Repositorio configurado como remoto `origin`:
+La interfaz y los contratos están implementados y probados con dobles de prueba; falta comprobar la integración con el predictor y los pesos reales en esta instalación. Repositorio configurado como remoto `origin`:
 https://github.com/JosFer720/ReclamoRuta.git

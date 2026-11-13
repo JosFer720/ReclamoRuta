@@ -20,7 +20,8 @@ Thumbs.db
 .DS_Store
 .worktrees/
 
-# Documentos de trabajo exclusivamente locales
+# Material de trabajo exclusivamente local
+/.local/
 
 # Datos, pesos y resultados voluminosos: compartir fuera de Git
 data/raw/
@@ -43,5 +44,3 @@ uploads/
 
 # Se pueden versionar métricas pequeñas y manifiestos sin datos sensibles
 *.egg-info/
-
-.local/

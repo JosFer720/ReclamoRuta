@@ -1,7 +1,7 @@
 {
   "version": "rutas-v0.1",
   "status": "proposal",
-  "description": "Mapa intención→ruta DISEÑADO POR EL GRUPO (propuesta de equipo, pendiente de aprobación del equipo). BANKING77 no etiqueta departamentos reales; estas rutas son una decisión de diseño.",
+  "description": "Mapa intención→ruta DISEÑADO POR EL GRUPO (propuesta pendiente de aprobación). BANKING77 no etiqueta departamentos reales; estas rutas son una decisión de diseño.",
   "routes": {
     "tarjetas": {
       "name": "Tarjetas: emisión y funcionamiento",

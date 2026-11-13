@@ -12,9 +12,9 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
-# Interfaz. Versiones mínimas verificadas en desarrollo; fijar exactas en el configuration 2.
+# Interfaz. Versiones mínimas verificadas en desarrollo; fijar exactas al desplegar.
 app = ["streamlit>=1.40"]
-# Entrenamiento y predictor (equipo). Coordinar versiones/CUDA en el configuration 2;
+# Entrenamiento y predictor. Comprobar compatibilidad de versiones y CUDA;
 # PyTorch para la RTX 5070 Ti se instala desde el índice de PyTorch, no desde aquí.
 model = ["torch>=2.5", "transformers>=4.45", "safetensors>=0.4", "scikit-learn>=1.5"]
 dev = ["pytest==9.1.1", "streamlit>=1.40"]

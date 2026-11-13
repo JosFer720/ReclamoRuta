@@ -9,6 +9,7 @@ artifacts
 checkpoints
 runs
 uploads
+.local
 .env
 .env.*
 *.pt
@@ -16,5 +17,3 @@ uploads
 *.safetensors
 *.onnx
 .DS_Store
-
-.local/

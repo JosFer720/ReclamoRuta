@@ -1,7 +1,7 @@
 """Shared contracts between predictor, application and evaluation.
 
-Owner: equipo. Changing a field here changes the interface for equipo's predictor
-and equipo's evaluation; coordinate before merging.
+Changing a field here changes the predictor and evaluation interfaces;
+coordinate changes before merging.
 
 Flow: text -> ``validate_message`` -> ``Predictor.predict`` -> ``Prediction`` ->
 ``route_message`` (threshold from a bound decision, route from ``routes.json``)
@@ -87,7 +87,7 @@ class Prediction:
 
 
 class PredictorLike(Protocol):
-    """What the app needs from ``reclamoruta.predictor.Predictor`` (equipo)."""
+    """What the app needs from ``reclamoruta.predictor.Predictor``."""
 
     model_version: str
 

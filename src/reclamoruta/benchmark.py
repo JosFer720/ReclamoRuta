@@ -1,6 +1,6 @@
 """Inference latency benchmark: startup vs. inference, warm-up, batch 1, p50/p95.
 
-Example (after equipo's artifact exists)::
+Example (after a verified model artifact exists)::
 
     python -m reclamoruta.benchmark --artifact artifacts/distilbert-v2 \
         --texts data/processed/banking77/validation_model.csv --n 200 --warmup 10 \
@@ -160,7 +160,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
 
-    from reclamoruta.predictor import Predictor  # equipo's module
+    from reclamoruta.predictor import Predictor
 
     texts = read_texts(args.texts, limit=args.n)
     result = run_benchmark(

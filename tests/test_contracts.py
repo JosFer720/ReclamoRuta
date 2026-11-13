@@ -60,7 +60,7 @@ def test_prediction_has_agreed_fields_and_is_immutable():
         p.label = "other"
 
 
-def test_prediction_satisfies_equipo_evaluation_protocol():
+def test_prediction_satisfies_evaluation_protocol():
     from reclamoruta.evaluate import evaluate_predictions
 
     result = evaluate_predictions(["card_arrival"], [make_prediction()], categories=list(CATALOG))

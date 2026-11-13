@@ -146,7 +146,14 @@ def _median(values: list[float]) -> float | None:
 def summarize(trials: Iterable[Trial]) -> dict:
     """Per-condition counts/times and medians usable as ``value.py`` time inputs.
 
-    Missing groups yield ``None``, never zero.
+    ``t_corregir`` estimates additional correction time as the corrected-total
+    median minus the uncorrected acceptance median, excluding reviewed trials.
+    This difference of group medians is not a measured correction phase and
+    need not reconstruct total time for an arbitrary population. The raw
+    corrected-total median remains in ``asistida.corrected_total_median_s``.
+    ``correction_time_estimate`` documents the method, status and diagnostic.
+    Missing groups or a negative estimate yield ``None``; equal medians yield
+    a valid zero estimate.
     """
     trials = list(trials)
     manual = [t.elapsed_s for t in trials if t.condition == "manual"]
@@ -154,16 +161,37 @@ def summarize(trials: Iterable[Trial]) -> dict:
     accepted = [t.elapsed_s for t in assisted if not t.corrected and not t.needs_review]
     corrected = [t.elapsed_s for t in assisted if t.corrected and not t.needs_review]
     reviewed = [t.elapsed_s for t in assisted if t.needs_review]
+    accepted_median = _median(accepted)
+    corrected_total_median = _median(corrected)
+    correction_extra = None
+    if accepted_median is None or corrected_total_median is None:
+        correction_status = "missing_groups"
+        correction_diagnostic = "Both nonreviewed accepted and corrected groups are required."
+    elif corrected_total_median < accepted_median:
+        correction_status = "negative_estimate"
+        correction_diagnostic = (
+            "Corrected-total median is below acceptance median; these aggregate "
+            "samples cannot infer nonnegative additional correction time."
+        )
+    else:
+        correction_extra = corrected_total_median - accepted_median
+        correction_status = "estimated"
+        correction_diagnostic = "Difference of group medians; not a measured correction phase."
     return {
         "manual": {"n": len(manual), "median_s": _median(manual),
                    "mean_s": statistics.fmean(manual) if manual else None},
         "asistida": {
             "n": len(assisted), "median_s": _median([t.elapsed_s for t in assisted]),
+            "corrected_total_median_s": corrected_total_median,
             "correction_rate": sum(t.corrected for t in assisted) / len(assisted) if assisted else None,
         },
         "value_inputs": {
-            "t_manual": _median(manual), "t_aceptar": _median(accepted),
-            "t_corregir": _median(corrected), "t_revision": _median(reviewed),
+            "t_manual": _median(manual), "t_aceptar": accepted_median,
+            "t_corregir": correction_extra, "t_revision": _median(reviewed),
+        },
+        "correction_time_estimate": {
+            "method": "difference_of_group_medians", "status": correction_status,
+            "diagnostic": correction_diagnostic,
         },
         "n_participants": len({t.participant_id for t in trials}),
         "estimated": True,
